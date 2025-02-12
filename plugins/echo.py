@@ -33,7 +33,7 @@ from pyrogram.types import Thumbnail
 
 
 
-@Client.on_message(filters.regex(pattern=".*http.*"))
+@Client.on_message(filters.regex(pattern="http.*"))
 async def echo(bot, update):
     if update.from_user.id != Config.OWNER_ID:  
         if not await check_verification(bot, update.from_user.id) and Config.TRUE_OR_FALSE:
