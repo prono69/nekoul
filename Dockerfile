@@ -1,18 +1,45 @@
-FROM python:3.9-slim
+# Use an official Python runtime as a parent image
+FROM python:3.9.5-buster
+
+# Set timezone
+ENV TZ=Asia/Kolkata
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /app
 WORKDIR /.cache
-
-RUN apt -qq update && \
-    apt -qq install -y --no-install-recommends \
-    curl \
-    git \
-    wget \
-    jq \
-    python3-dev \
-    neofetch && \
+    
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        neofetch \
+        libnss3 \
+        libx11-xcb1 \
+        libxcursor1 \
+        libxi6 \
+        libgtk-3-0 \
+        libnspr4 \
+        libdbus-1-3 \
+        libatk1.0-0 \
+        libatk-bridge2.0-0 \
+        libcups2 \
+        libdrm2 \
+        libxkbcommon0 \
+        libatspi2.0-0 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxfixes3 \
+        libxrandr2 \
+        libgbm1 \
+        libasound2 \
+        git \
+        curl \
+        wget \
+        zip \
+        jq \
+        python3-dev \
+        p7zip-full \
+        mediainfo && \
     apt-get autoremove --purge -y && \
-    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 COPY . .
