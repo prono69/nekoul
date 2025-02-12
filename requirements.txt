@@ -4,7 +4,6 @@ numpy
 Pillow
 requests
 GitPython
-# git+https://github.com/TelegramPlayGround/pyrogram-tgcrypto.git
 tgcrypto-pyrofork
 olefile
 motor
@@ -24,5 +23,6 @@ pyromod
 yt-dlp[default,curl-cffi]
 lk21
 pytube
-flask
-gunicorn==20.1.0
+fastapi
+uvicorn[standard]
+
