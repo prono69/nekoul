@@ -1,0 +1,28 @@
+name: Sync to Hugging Face Hub
+ 
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+ 
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
+          
+      - name: Set up Git
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+ 
+      - name: Push to Hugging Face Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git remote add huggingface https://kawaiimizo:$HF_TOKEN@huggingface.co/spaces/kawaiimizo/riasudl
+          git push huggingface main --force
+          
