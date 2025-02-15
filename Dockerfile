@@ -71,9 +71,6 @@ RUN wget https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz 
     mv ffmpeg-git*/ffprobe /usr/local/bin/ && \
     rm -rf ffmpeg-git* ffmpeg-git-amd64-static.tar.xz ffmpeg-git-amd64-static.tar.xz.md5
 
-# Copy the startup script and ensure it is executable
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
 
 # Expose the application port
 EXPOSE 7860
