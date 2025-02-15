@@ -57,7 +57,7 @@ WORKDIR $HOME/app
 # Create cache directory for pip (only .cache, since WORKDIR already creates /app)
 RUN mkdir -p $HOME/.cache && chmod -R 777 $HOME/.cache
 RUN chown -R 1000:0 $HOME/app && \
-    chmod -R 755 $HOME/app && \
+    chmod -R 755 $HOME/app
  
 # Copy requirements first to leverage Docker cache
 COPY --chown=user requirements.txt .
