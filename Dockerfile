@@ -5,6 +5,9 @@ FROM python:3.10-bullseye
 ENV TZ=Asia/Kolkata
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
+# Set HOME to /app so that user-specific directories (.config, .cache, .local) are placed there
+ENV HOME=/app
+
 # Install OS-level dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -42,7 +45,7 @@ RUN apt-get update && \
 # Set working directory
 WORKDIR /app
 
-# Copy and install Python dependencies first
+# Copy and install Python dependencies first to leverage Docker caching
 COPY requirements.txt .
 RUN pip install --upgrade pip setuptools && \
     pip install -r requirements.txt
@@ -50,9 +53,11 @@ RUN pip install --upgrade pip setuptools && \
 # Copy the rest of the application code
 COPY . .
 
-# Set permissions on /app and create /.cache with proper permissions
+# Set permissions on /app and create the cache/config directories under $HOME
 RUN chown -R 1000:0 /app && chmod -R 777 /app && \
-    mkdir -p /.cache && chown -R 1000:0 /.cache && chmod -R 777 /.cache
+    mkdir -p $HOME/.cache $HOME/.config $HOME/.local && \
+    chown -R 1000:0 $HOME/.cache $HOME/.config $HOME/.local && \
+    chmod -R 777 $HOME/.cache $HOME/.config $HOME/.local
 
 # (Optional) Verify dependencies for yt-dlp if needed
 RUN python -m pip check yt-dlp
@@ -66,6 +71,9 @@ RUN wget https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz 
     mv ffmpeg-git*/ffprobe /usr/local/bin/ && \
     rm -rf ffmpeg-git* ffmpeg-git-amd64-static.tar.xz ffmpeg-git-amd64-static.tar.xz.md5
 
+# Copy the startup script and ensure it is executable
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
 # Expose the application port
 EXPOSE 7860
