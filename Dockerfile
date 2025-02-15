@@ -33,6 +33,16 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
     
+    
+# Manual FFmpeg installation (preserved as requested)
+RUN wget -q https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz \
+    && wget -q https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz.md5 \
+    && md5sum -c ffmpeg-git-amd64-static.tar.xz.md5 \
+    && tar xf ffmpeg-git-amd64-static.tar.xz \
+    && mv ffmpeg-git-*-amd64-static/ffmpeg ffmpeg-git-*-amd64-static/ffprobe /usr/local/bin/ \
+    && rm -rf ffmpeg-git-* ffmpeg-git-amd64-static.tar.xz*
+    
+
 
 # Create user with UID 1000 (Hugging Face requirement)
 RUN useradd -m -u 1000 user
@@ -55,13 +65,6 @@ COPY --chown=user requirements.txt .
 RUN pip install --upgrade pip setuptools \
     && pip install -r requirements.txt
 
-# Manual FFmpeg installation (preserved as requested)
-RUN wget -q https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz \
-    && wget -q https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz.md5 \
-    && md5sum -c ffmpeg-git-amd64-static.tar.xz.md5 \
-    && tar xf ffmpeg-git-amd64-static.tar.xz \
-    && mv ffmpeg-git-*-amd64-static/ffmpeg ffmpeg-git-*-amd64-static/ffprobe /usr/local/bin/ \
-    && rm -rf ffmpeg-git-* ffmpeg-git-amd64-static.tar.xz*
 
 # Copy application code
 COPY --chown=user . .
