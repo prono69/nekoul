@@ -1,76 +1,74 @@
+# Use an official Python runtime as a parent image
 FROM python:3.10-bullseye
 
 # Set timezone
 ENV TZ=Asia/Kolkata
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Install system dependencies
+# Install OS-level dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libnss3 \
-    ca-certificates \
-    libx11-xcb1 \
-    libxcb-dri3-0 \
-    libdrm2 \
-    libgbm1 \
-    libasound2 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libxtst6 \
-    neofetch \
-    git \
-    curl \
-    wget \
-    jq \
-    python3-dev \
-    mediainfo \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-    
-    
-# Manual FFmpeg installation (preserved as requested)
-RUN wget -q https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz \
-    && wget -q https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz.md5 \
-    && md5sum -c ffmpeg-git-amd64-static.tar.xz.md5 \
-    && tar xf ffmpeg-git-amd64-static.tar.xz \
-    && mv ffmpeg-git-*-amd64-static/ffmpeg ffmpeg-git-*-amd64-static/ffprobe /usr/local/bin/ \
-    && rm -rf ffmpeg-git-* ffmpeg-git-amd64-static.tar.xz*
-    
+        neofetch \
+        libnss3 \
+        libx11-xcb1 \
+        libxcursor1 \
+        libxi6 \
+        libgtk-3-0 \
+        libnspr4 \
+        libdbus-1-3 \
+        libatk1.0-0 \
+        libatk-bridge2.0-0 \
+        libcups2 \
+        libdrm2 \
+        libxkbcommon0 \
+        libatspi2.0-0 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxfixes3 \
+        libxrandr2 \
+        libgbm1 \
+        libasound2 \
+        git \
+        curl \
+        wget \
+        zip \
+        jq \
+        python3-dev \
+        p7zip-full \
+        mediainfo && \
+    apt-get autoremove --purge -y && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy and install Python dependencies first
+COPY requirements.txt .
+RUN pip install --upgrade pip setuptools && \
+    pip install -r requirements.txt
+
+# Copy the rest of the application code
+COPY . .
+
+# Set permissions on /app and create /.cache with proper permissions
+RUN chown -R 1000:0 /app && chmod -R 777 /app && \
+    mkdir -p /.cache && chown -R 1000:0 /.cache && chmod -R 777 /.cache
+
+# (Optional) Verify dependencies for yt-dlp if needed
+RUN python -m pip check yt-dlp
+
+# Download, verify, extract, and clean up ffmpeg installation
+RUN wget https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz && \
+    wget https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz.md5 && \
+    md5sum -c ffmpeg-git-amd64-static.tar.xz.md5 && \
+    tar xvf ffmpeg-git-amd64-static.tar.xz && \
+    mv ffmpeg-git*/ffmpeg /usr/local/bin/ && \
+    mv ffmpeg-git*/ffprobe /usr/local/bin/ && \
+    rm -rf ffmpeg-git* ffmpeg-git-amd64-static.tar.xz ffmpeg-git-amd64-static.tar.xz.md5
 
 
-# Create user with UID 1000 (Hugging Face requirement)
-RUN useradd -m -u 1000 user
-
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH \
-    PIP_CACHE_DIR=/home/user/.cache/pip
-
-# Set working directory (creates /home/user/app automatically)
-WORKDIR $HOME/app
-
-# Switch to non-root user
-USER user
-
-# Create cache directory for pip (only .cache, since WORKDIR already creates /app)
-RUN mkdir -p $HOME/.cache && chmod -R 777 $HOME/.cache
-
-# Copy requirements first to leverage Docker cache
-COPY --chown=user requirements.txt .
-RUN pip install --upgrade pip setuptools \
-    && pip install -r requirements.txt
-
-
-# Copy application code
-COPY --chown=user . .
-
-RUN python3 -m pip check yt-dlp
-
+# Expose the application port
 EXPOSE 7860
 
+# Start the application via the startup script
 CMD ["bash", "-c", "python3 server.py & python3 bot.py"]
