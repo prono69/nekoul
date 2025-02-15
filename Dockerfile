@@ -7,6 +7,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Set HOME to /app so that user-specific directories (.config, .cache, .local) are placed there
 ENV HOME=/app
+ENV PATH="/app/.local/bin:${PATH}"
 
 # Install OS-level dependencies
 RUN apt-get update && \
