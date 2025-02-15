@@ -69,9 +69,6 @@ RUN pip install --upgrade pip setuptools \
 # Copy application code
 COPY --chown=user . .
 
-# Final permissions fix
-RUN chmod -R a+rwx $HOME
-
 RUN python3 -m pip check yt-dlp
 
 EXPOSE 7860
