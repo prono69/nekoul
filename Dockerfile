@@ -61,12 +61,12 @@ RUN chown -R 1000:0 $HOME/app $HOME/.cache /usr && \
     chmod -R 777 $HOME/app /usr $HOME/.cache
  
 # Copy requirements first to leverage Docker cache
-COPY --chown=user requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip setuptools \
     && pip install --no-cache-dir -r requirements.txt
  
 # Copy application code
-COPY --chown=user . .
+COPY . .
  
 RUN python3 -m pip check yt-dlp
  
