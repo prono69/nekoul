@@ -5,8 +5,9 @@ FROM python:3.10-bullseye
 ENV TZ=Asia/Kolkata
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Set HOME to /app so that user-specific directories (.config, .cache, .local) are placed there
+# Set HOME to /app so that user-specific directories (.config, .cache, .local) are under /app
 ENV HOME=/app
+# Add the local bin directory to PATH so that installed scripts are available
 ENV PATH="/app/.local/bin:${PATH}"
 
 # Install OS-level dependencies
@@ -46,15 +47,19 @@ RUN apt-get update && \
 # Set working directory
 WORKDIR /app
 
-# Copy and install Python dependencies first to leverage Docker caching
+# Copy requirements.txt first for caching purposes
 COPY requirements.txt .
-RUN pip install --upgrade pip setuptools && \
+
+# Ensure the system site-packages directory is writable by user 1000
+RUN chown -R 1000:0 /usr/local/lib/python3.10/site-packages && \
+    chmod -R 777 /usr/local/lib/python3.10/site-packages && \
+    pip install --upgrade pip setuptools && \
     pip install -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .
 
-# Set permissions on /app and create the cache/config directories under $HOME
+# Set permissions on /app and create/configure the cache, config, and local directories under $HOME
 RUN chown -R 1000:0 /app && chmod -R 777 /app && \
     mkdir -p $HOME/.cache $HOME/.config $HOME/.local && \
     chown -R 1000:0 $HOME/.cache $HOME/.config $HOME/.local && \
