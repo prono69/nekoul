@@ -54,10 +54,11 @@ WORKDIR $HOME/app
 # (Optional) If you want to disable pip caching entirely, you can skip creating the cache directory.
 # Otherwise, you could fix its permissions—but here we opt to disable caching.
 # RUN mkdir -p $HOME/.cache && chmod -R 777 $HOME/.cache
+
  
 # Adjust ownership/permissions for the app directory (and /usr if needed)
-RUN chown -R 1000:0 $HOME/app /usr && \
-    chmod -R 755 $HOME/app /usr
+RUN chown -R 1000:0 $HOME/app $HOME/.cache /usr && \
+    chmod -R 755 $HOME/app /usr $HOME/.cache
  
 # Copy requirements first to leverage Docker cache
 COPY --chown=user requirements.txt .
