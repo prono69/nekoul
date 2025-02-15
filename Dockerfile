@@ -46,7 +46,6 @@ RUN useradd -m -u 1000 user
  
 # Set environment variables for the non-root user
 ENV HOME=/home/user \
-    PIP_PREFIX=/home/user/.local \
     PATH=/home/user/.local/bin:$PATH
  
 # Set working directory (creates /home/user/app automatically)
@@ -72,6 +71,4 @@ RUN python3 -m pip check yt-dlp
  
 EXPOSE 7860
 
-USER user
- 
 CMD ["bash", "-c", "python3 server.py & python3 bot.py"]
