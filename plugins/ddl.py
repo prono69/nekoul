@@ -6,8 +6,10 @@ import os
 import time
 import subprocess
 from datetime import datetime
-from urllib.parse import urlparse
 from re import findall
+from pathlib import PurePath
+from typing import Dict, Optional, Tuple
+from urllib.parse import urlparse, unquote_plus
 from plugins.script import Translation
 
 from pyrogram import Client, filters, enums
@@ -74,9 +76,10 @@ def qiwi(url: str) -> str:
         else:
             raise Exception("ERROR: File not found")
 
-def gofile(url: str) -> str:
-    from hashlib import sha256
-    import requests
+def gofile(url: str) -> Tuple[str, Dict[str, str]]:
+    """
+    Generate a direct download link for a GoFile URL and return the URL along with headers.
+    """
     try:
         if "::" in url:
             _password = url.split("::")[-1]
@@ -87,10 +90,16 @@ def gofile(url: str) -> str:
         _id = url.split("/")[-1]
     except Exception as e:
         raise Exception(f"ERROR: {e.__class__.__name__}")
-    
-    def __get_token(session):
+
+    def __get_token(session: requests.Session) -> str:
+        """
+        Fetch the account token from GoFile's API.
+        """
         headers = {
-            "User-Agent": getattr(Config, "USER_AGENT", "Mozilla/5.0")
+            "User-Agent": "Mozilla/5.0",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept": "*/*",
+            "Connection": "keep-alive",
         }
         __url = "https://api.gofile.io/accounts"
         try:
@@ -101,11 +110,17 @@ def gofile(url: str) -> str:
         except Exception as e:
             raise e
 
-    def __fetch_links(session, _id, folderPath=""):
+    def __fetch_links(session: requests.Session, _id: str) -> str:
+        """
+        Fetch the direct download link for the given GoFile ID.
+        """
         _url = f"https://api.gofile.io/contents/{_id}?wt=4fd6sg89d7s6&cache=true"
         headers = {
-            "User-Agent": getattr(Config, "USER_AGENT", "Mozilla/5.0"),
-            "Authorization": "Bearer " + token,
+            "User-Agent": "Mozilla/5.0",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept": "*/*",
+            "Connection": "keep-alive",
+            "Authorization": f"Bearer {token}",
         }
         if _password:
             _url += f"&password={_password}"
@@ -114,26 +129,38 @@ def gofile(url: str) -> str:
         except Exception as e:
             raise Exception(f"ERROR: {e.__class__.__name__}")
         if _json["status"] in "error-passwordRequired":
-            raise Exception("ERROR: Password required")
+            raise Exception("ERROR: Password required.")
         if _json["status"] in "error-passwordWrong":
             raise Exception("ERROR: Wrong password!")
         if _json["status"] in "error-notFound":
-            raise Exception("ERROR: File not found on gofile's server")
+            raise Exception("ERROR: File not found on GoFile's server.")
         if _json["status"] in "error-notPublic":
-            raise Exception("ERROR: This folder is not public")
+            raise Exception("ERROR: This folder is not public.")
+
         data = _json["data"]
         contents = data.get("children", {})
         if len(contents) == 1:
             for key, value in contents.items():
                 return value.get("link")
-        raise Exception("ERROR: Multiple files found, cannot determine direct link")
-    
+        raise Exception("ERROR: Multiple files found, cannot determine direct link.")
+
     with requests.Session() as session:
         try:
             token = __get_token(session)
         except Exception as e:
             raise Exception(f"ERROR: {e.__class__.__name__}")
-        return __fetch_links(session, _id)
+        try:
+            direct_url = __fetch_links(session, _id)
+        except Exception as e:
+            raise Exception(f"ERROR: {e}")
+
+    # Prepare headers with the Cookie
+    headers = {
+        "Cookie": f"accountToken={token}",
+        "User-Agent": "Mozilla/5.0",
+    }
+
+    return direct_url, headers
 
 def streamtape(url: str) -> str:
     import requests
@@ -180,15 +207,74 @@ def generate_thumbnail(video_path: str, thumbnail_path: str) -> None:
 # Initialize mimetypes
 mimetypes.init()
 
-async def download_coroutine(session, url: str, file_path: str, message: Message, start_time: float) -> str:
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Replace invalid characters in filenames with an underscore.
+    """
+    return re.sub(r'[<>:"/\\|?*]', "_", filename)
+
+
+def parse_content_disposition(content_disposition: str) -> Optional[str]:
+    """
+    Parse the Content-Disposition header to extract the filename.
+    """
+    parts = content_disposition.split(";")
+    filename = None
+    for part in parts:
+        part = part.strip()
+        if part.startswith("filename="):
+            filename = part.split("=", 1)[1].strip(' "')
+        elif part.startswith("filename*="):
+            match = re.match(r"filename\*=(\S*)''(.*)", part)
+            if match:
+                encoding, value = match.groups()
+                try:
+                    filename = unquote_plus(value, encoding=encoding)
+                except ValueError:
+                    filename = None
+    return filename
+
+
+def get_filename(headers: Dict[str, str], url: str, unique_id: str) -> str:
+    """
+    Determine the filename from HTTP headers, URL, or generate a default.
+    """
+    filename = None
+    if headers.get("Content-Disposition"):
+        filename = parse_content_disposition(headers["Content-Disposition"])
+    if not filename:
+        filename = unquote_plus(url.rstrip("/").split("/")[-1].strip(' "'))
+    if not filename or "." not in filename:
+        if headers.get("Content-Type"):
+            extension = mimetypes.guess_extension(headers["Content-Type"])
+            filename = f"{unique_id}{extension or ''}".strip()
+        else:
+            filename = unique_id
+    filename = unquote_plus(filename.strip().replace("/", "_"))
+    return PurePath(sanitize_filename(filename))
+
+
+
+async def download_coroutine(
+    session, 
+    url: str, 
+    file_name: str, 
+    headers: Dict[str, str], 
+    file_path: str, 
+    message: Message, 
+    start_time: float
+) -> str:
+    """
+    Download a file from the given URL with optional headers.
+    """
     downloaded = 0
     last_update_time = start_time
     last_progress_text = ""
 
     try:
-        async with session.get(url, timeout=Config.PROCESS_MAX_TIMEOUT) as response:
+        async with session.get(url, headers=headers, timeout=Config.PROCESS_MAX_TIMEOUT) as response:
             total_length = int(response.headers.get("Content-Length", 0))
-            file_name = os.path.basename(urlparse(url).path) or "downloaded_file"
             await message.edit_text(f"📥 **Initiating Download**\n\n**File Name:** `{file_name}`\n**File Size:** {humanbytes(total_length)}")
 
             with open(file_path, "wb") as f_handle:
@@ -236,6 +322,7 @@ async def udl_handler(client: Client, message: Message):
     start_time = time.time()
     text = message.text
     args = text.split(maxsplit=1)
+    headers = {}
     if len(args) < 2:
         return await message.reply_text("Usage: .le [URL]")
     url = args[1].strip()
@@ -243,8 +330,8 @@ async def udl_handler(client: Client, message: Message):
         url = message.reply_to_message.text.strip()
     if not url:
         return await message.reply_text("Usage: .le [URL]")
-
-    # Parse domain and determine if URL is supported for bypassing
+        
+  # Parse domain and determine if URL is supported for bypassing
     domain = urlparse(url).hostname
     supported = False
     if domain:
@@ -261,33 +348,28 @@ async def udl_handler(client: Client, message: Message):
             url = qiwi(url)
             supported = True
         elif "gofile.io" in domain:
-            url = gofile(url)
+            direct_url, headers = gofile(url)
+            url = direct_url
             supported = True
         elif "streamtape.to" in domain:
             url = streamtape(url)
-            supported = True
+            supported = True      
 
     lol = await message.reply("📥 **Downloading...**")
     user_dir = os.path.join(Config.DOWNLOAD_LOCATION, str(message.from_user.id))
     os.makedirs(user_dir, exist_ok=True)
 
-    # Determine file name and extension
-    file_name = os.path.basename(urlparse(url).path) or "downloaded_file"
+    # Determine file name and headers
+
+    # Get file name from headers or URL
+    unique_id = str(int(time.time()))  # Example: Use timestamp as unique ID
+    file_name = get_filename(headers, url, unique_id)
     download_path = os.path.join(user_dir, file_name)
 
     # Start the download using aiohttp
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, timeout=Config.PROCESS_MAX_TIMEOUT) as response:
-                # Get file extension from Content-Type header or guess it
-                content_type = response.headers.get("Content-Type")
-                if content_type:
-                    file_ext = mimetypes.guess_extension(content_type) or ".bin"
-                else:
-                    file_ext = os.path.splitext(file_name)[1] or ".bin"
-                download_path = os.path.join(user_dir, f"{file_name}{file_ext}")
-
-            downloaded_file = await download_coroutine(session, url, download_path, lol, start_time)
+            downloaded_file = await download_coroutine(session, url, file_name, headers, download_path, lol, start_time)
         except asyncio.TimeoutError:
             return await lol.edit("❌ Download timed out!")
         except Exception as e:
