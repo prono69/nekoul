@@ -236,7 +236,7 @@ async def udl_handler(client: Client, message: Message):
     # Start the download using aiohttp
     async with aiohttp.ClientSession() as session:
         try:
-            downloaded_file = await download_coroutine(session, url, download_path, message.chat.id, message.id, start_time)
+            downloaded_file = await download_coroutine(client, session, url, download_path, message.chat.id, message.id, start_time)
         except asyncio.TimeoutError:
             return await status_msg.edit_text("❌ Download timed out!")
         except Exception as e:
