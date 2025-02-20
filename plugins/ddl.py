@@ -366,7 +366,9 @@ async def udl_handler(client: Client, message: Message):
 
     # Get file name from headers or URL
     unique_id = str(int(time.time()))  # Example: Use timestamp as unique ID
-    file_name = get_filename(headers, url, unique_id)
+    op = requests.get(url)
+    head = op.headers
+    file_name = get_filename(head, url, unique_id)
     download_path = os.path.join(user_dir, file_name)
 
     # Start the download using aiohttp
