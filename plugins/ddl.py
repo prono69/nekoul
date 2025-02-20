@@ -210,7 +210,7 @@ async def download_coroutine(session, url: str, file_path: str, message: Message
 # Main udl plugin command handler
 ############################################
 
-@Client.on_message(filters.command("l") & filters.me)
+@Client.on_message(filters.command("le"))
 async def udl_handler(client: Client, message: Message):
     start_time = time.time()
     text = message.text
