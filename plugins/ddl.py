@@ -295,7 +295,7 @@ async def udl_handler(client: Client, message: Message):
                 video=downloaded_file,
                 thumb=thumb_path if os.path.exists(thumb_path) else None,
                 caption=caption,
-                reply_to_message_id=message.message_id,
+                # reply_to_message_id=message.message_id,
                 progress=progress_for_pyrogram,
                 progress_args=("Uploading...", message, time.time())
             )
@@ -306,7 +306,7 @@ async def udl_handler(client: Client, message: Message):
                 # chat_id=message.chat.id,
                 document=downloaded_file,
                 caption=caption,
-                reply_to_message_id=message.message_id,
+                # reply_to_message_id=message.message_id,
                 progress=progress_for_pyrogram,
                 progress_args=("Uploading...", message, time.time())
             )
