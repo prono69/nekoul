@@ -1,3 +1,4 @@
+import mimetypes
 import logging
 import asyncio
 import aiohttp
@@ -7,6 +8,7 @@ import subprocess
 from datetime import datetime
 from urllib.parse import urlparse
 from re import findall
+from plugins.script import Translation
 
 from pyrogram import Client, filters, enums
 from pyrogram.types import Message
@@ -175,6 +177,9 @@ def generate_thumbnail(video_path: str, thumbnail_path: str) -> None:
 # Download coroutine using aiohttp
 ############################################
 
+# Initialize mimetypes
+mimetypes.init()
+
 async def download_coroutine(session, url: str, file_path: str, message: Message, start_time: float) -> str:
     downloaded = 0
     last_update_time = start_time
@@ -183,7 +188,9 @@ async def download_coroutine(session, url: str, file_path: str, message: Message
     try:
         async with session.get(url, timeout=Config.PROCESS_MAX_TIMEOUT) as response:
             total_length = int(response.headers.get("Content-Length", 0))
-            await message.edit_text(f"Initiating Download\nURL: {url}\nFile Size: {humanbytes(total_length)}")
+            file_name = os.path.basename(urlparse(url).path) or "downloaded_file"
+            await message.edit_text(f"📥 **Initiating Download**\n\n**File Name:** `{file_name}`\n**File Size:** {humanbytes(total_length)}")
+
             with open(file_path, "wb") as f_handle:
                 while True:
                     chunk = await response.content.read(Config.CHUNK_SIZE)
@@ -194,16 +201,22 @@ async def download_coroutine(session, url: str, file_path: str, message: Message
                     now = time.time()
                     diff = now - start_time
 
-                    # Update progress every ~5 seconds or when finished
+                    # Update progress every ~2 seconds or when finished
                     if now - last_update_time >= 5 or downloaded == total_length:
+                        percentage = (downloaded / total_length) * 100
                         speed = downloaded / diff if diff > 0 else 0
                         time_to_completion = round((total_length - downloaded) / speed) if speed > 0 else 0
                         estimated_total_time = round(diff) + time_to_completion
+
+                        # Stylish progress bar
+                        progress_bar = "⬢" * int(percentage / 5) + "⬡" * (20 - int(percentage / 5))
                         progress_text = (
-                            f"**Download Status**\nURL: {url}\n"
-                            f"File Size: {humanbytes(total_length)}\n"
-                            f"Downloaded: {humanbytes(downloaded)}\n"
-                            f"ETA: {TimeFormatter(estimated_total_time * 1000)}"
+                            f"📥 **Downloading...**\n\n"
+                            f"**File Name:** `{file_name}`\n"
+                            f"**Progress:** [{progress_bar}] {round(percentage, 2)}%\n"
+                            f"**Downloaded:** {humanbytes(downloaded)} of {humanbytes(total_length)}\n"
+                            f"**Speed:** {humanbytes(speed)}/s\n"
+                            f"**ETA:** {TimeFormatter(time_to_completion * 1000)}"
                         )
 
                         # Only update the message if the content has changed
@@ -217,9 +230,6 @@ async def download_coroutine(session, url: str, file_path: str, message: Message
         logger.error("Error in download_coroutine: %s", e)
         raise e
 
-############################################
-# Main udl plugin command handler
-############################################
 
 @Client.on_message(filters.command("le"))
 async def udl_handler(client: Client, message: Message):
@@ -227,14 +237,13 @@ async def udl_handler(client: Client, message: Message):
     text = message.text
     args = text.split(maxsplit=1)
     if len(args) < 2:
-        return await message.reply_text("Usage: .udl [URL]")
+        return await message.reply_text("Usage: .le [URL]")
     url = args[1].strip()
-    # If no URL is provided, try to get it from the replied message
     if not url and message.reply_to_message and message.reply_to_message.text:
         url = message.reply_to_message.text.strip()
     if not url:
-        return await message.reply_text("Usage: .udl [URL]")
-    
+        return await message.reply_text("Usage: .le [URL]")
+
     # Parse domain and determine if URL is supported for bypassing
     domain = urlparse(url).hostname
     supported = False
@@ -258,60 +267,62 @@ async def udl_handler(client: Client, message: Message):
             url = streamtape(url)
             supported = True
 
-    # if supported:
-        # status_msg = await message.reply_text("**Supported URL found!**\nBypassing and downloading...")
-    # else:
-        # status_msg = await message.reply_text("Downloading...")
-
-    # Create a temporary directory for this user
-    lol = await message.reply("Dl......")
+    lol = await message.reply("📥 **Downloading...**")
     user_dir = os.path.join(Config.DOWNLOAD_LOCATION, str(message.from_user.id))
-    if not os.path.isdir(user_dir):
-        os.makedirs(user_dir)
-    # Determine file name (if empty, use a default name)
-    file_name = os.path.basename(urlparse(url).path)
-    if not file_name:
-        file_name = "downloaded_file"
+    os.makedirs(user_dir, exist_ok=True)
+
+    # Determine file name and extension
+    file_name = os.path.basename(urlparse(url).path) or "downloaded_file"
     download_path = os.path.join(user_dir, file_name)
 
     # Start the download using aiohttp
     async with aiohttp.ClientSession() as session:
         try:
+            async with session.get(url, timeout=Config.PROCESS_MAX_TIMEOUT) as response:
+                # Get file extension from Content-Type header or guess it
+                content_type = response.headers.get("Content-Type")
+                if content_type:
+                    file_ext = mimetypes.guess_extension(content_type) or ".bin"
+                else:
+                    file_ext = os.path.splitext(file_name)[1] or ".bin"
+                download_path = os.path.join(user_dir, f"{file_name}{file_ext}")
+
             downloaded_file = await download_coroutine(session, url, download_path, lol, start_time)
         except asyncio.TimeoutError:
-            return await message.reply("❌ Download timed out!")
+            return await lol.edit("❌ Download timed out!")
         except Exception as e:
-            return await message.reply(f"❌ Error during download: {str(e)}")
-    
+            return await lol.edit(f"❌ Error during download: {str(e)}")
+
     # Once downloaded, send the file with thumbnail if video
     if os.path.exists(downloaded_file):
         file_ext = os.path.splitext(downloaded_file)[1].lower()
         caption = f"**File Name:** `{os.path.basename(downloaded_file)}`"
-        if file_ext in [".mp4", ".mkv", ".avi"]:
-            thumb_path = os.path.splitext(downloaded_file)[0] + ".jpg"
-            generate_thumbnail(downloaded_file, thumb_path)
-            await message.reply_video(
-                # chat_id=message.chat.id,
-                video=downloaded_file,
-                thumb=thumb_path if os.path.exists(thumb_path) else None,
-                caption=caption,
-                # reply_to_message_id=message.message_id,
-                progress=progress_for_pyrogram,
-                progress_args=("Uploading...", message, time.time())
-            )
-            if os.path.exists(thumb_path):
+        thumb_path = None
+
+        try:
+            if file_ext in [".mp4", ".mkv", ".avi"]:
+                thumb_path = os.path.splitext(downloaded_file)[0] + ".jpg"
+                generate_thumbnail(downloaded_file, thumb_path)
+                await message.reply_video(
+                    video=downloaded_file,
+                    thumb=thumb_path if os.path.exists(thumb_path) else None,
+                    caption=caption,
+                    progress=progress_for_pyrogram,
+                    progress_args=(Translation.UPLOAD_START, lol, time.time())
+                )
+            else:
+                await message.reply_document(
+                    document=downloaded_file,
+                    caption=caption,
+                    progress=progress_for_pyrogram,
+                    progress_args=(Translation.UPLOAD_START, lol, time.time())
+                )
+        finally:
+            # Cleanup
+            if thumb_path and os.path.exists(thumb_path):
                 os.remove(thumb_path)
-        else:
-            await message.reply_document(
-                # chat_id=message.chat.id,
-                document=downloaded_file,
-                caption=caption,
-                # reply_to_message_id=message.message_id,
-                progress=progress_for_pyrogram,
-                progress_args=("Uploading...", message, time.time())
-            )
-        # await status_msg.delete()
-        os.remove(downloaded_file)
+            if os.path.exists(downloaded_file):
+                os.remove(downloaded_file)
+            await lol.delete()
     else:
-        await message.reply_text("❌ Downloaded file not found.")
-        
+        await lol.edit("❌ Downloaded file not found.")
