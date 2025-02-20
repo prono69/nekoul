@@ -1,4 +1,5 @@
 aiohttp
+cloudscraper
 hachoir
 numpy
 Pillow
