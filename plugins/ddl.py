@@ -371,9 +371,31 @@ async def udl_handler(client: Client, message: Message):
             logger.error(f"Error fetching headers: {e}")
             headers = {}
 
-    # Get file name from headers or URL
-    unique_id = str(int(time.time()))  # Example: Use timestamp as unique ID
-    file_name = get_filename(headers, url, unique_id)
+    # Determine file name
+    file_name = None
+    if "Content-Disposition" in headers:
+        content_disposition = headers["Content-Disposition"]
+        if "filename=" in content_disposition:
+            file_name = content_disposition.split("filename=")[1].strip('"\'')
+        elif "filename*=" in content_disposition:
+            file_name = content_disposition.split("filename*=")[1].split("'")[-1].strip('"\'')
+
+    # If file name is not found in headers, fallback to URL
+    if not file_name:
+        file_name = os.path.basename(urlparse(url).path) or "downloaded_file"
+
+    # Determine file extension
+    if "Content-Type" in headers:
+        content_type = headers["Content-Type"]
+        file_ext = mimetypes.guess_extension(content_type) or ".bin"
+    else:
+        file_ext = os.path.splitext(file_name)[1] or ".bin"
+
+    # Sanitize file name and add extension if missing
+    file_name = sanitize_filename(file_name)
+    if not file_name.endswith(file_ext):
+        file_name += file_ext
+
     download_path = os.path.join(user_dir, file_name)
 
     # Start the download using aiohttp
