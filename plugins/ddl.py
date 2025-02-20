@@ -333,8 +333,8 @@ async def udl_handler(client: Client, message: Message):
         url = message.reply_to_message.text.strip()
     if not url:
         return await message.reply_text("Usage: .le [URL]")
-        
-  # Parse domain and determine if URL is supported for bypassing
+
+    # Parse domain and determine if URL is supported for bypassing
     domain = urlparse(url).hostname
     supported = False
     if domain:
@@ -356,19 +356,24 @@ async def udl_handler(client: Client, message: Message):
             supported = True
         elif "streamtape.to" in domain:
             url = streamtape(url)
-            supported = True      
+            supported = True
 
     lol = await message.reply("📥 **Downloading...**")
     user_dir = os.path.join(Config.DOWNLOAD_LOCATION, str(message.from_user.id))
     os.makedirs(user_dir, exist_ok=True)
 
-    # Determine file name and headers
+    # Fetch headers asynchronously using aiohttp
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.head(url) as response:
+                headers = response.headers
+        except Exception as e:
+            logger.error(f"Error fetching headers: {e}")
+            headers = {}
 
     # Get file name from headers or URL
     unique_id = str(int(time.time()))  # Example: Use timestamp as unique ID
-    op = requests.get(url)
-    head = op.headers
-    file_name = get_filename(head, url, unique_id)
+    file_name = get_filename(headers, url, unique_id)
     download_path = os.path.join(user_dir, file_name)
 
     # Start the download using aiohttp
