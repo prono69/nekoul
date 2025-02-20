@@ -2,7 +2,10 @@ import mimetypes
 import logging
 import asyncio
 import aiohttp
+from hashlib import sha256
+import requests
 import os
+import re
 import time
 import subprocess
 from datetime import datetime
