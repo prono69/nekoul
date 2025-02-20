@@ -351,9 +351,13 @@ async def udl_handler(client: Client, message: Message):
             url = qiwi(url)
             supported = True
         elif "gofile.io" in domain:
-            direct_url, headers = gofile(url)
-            url = direct_url
-            supported = True
+            try:
+                direct_url, headers = gofile(url)
+                url = direct_url
+                supported = True
+            except Exception as e:
+                logger.error(f"GoFile Error: {e}")
+                return await message.reply_text(f"❌ GoFile Error: {str(e)}")
         elif "streamtape.to" in domain:
             url = streamtape(url)
             supported = True
@@ -362,14 +366,20 @@ async def udl_handler(client: Client, message: Message):
     user_dir = os.path.join(Config.DOWNLOAD_LOCATION, str(message.from_user.id))
     os.makedirs(user_dir, exist_ok=True)
 
-    # Fetch headers asynchronously using aiohttp
+    # Fetch headers asynchronously using aiohttp (HEAD request)
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.head(url) as response:
+            # Set a timeout for the HEAD request
+            timeout = aiohttp.ClientTimeout(total=10)  # 10 seconds
+            async with session.head(url, headers=headers, timeout=timeout) as response:
                 headers = response.headers
+                logger.info(f"Headers fetched: {headers}")
+        except asyncio.TimeoutError:
+            logger.error("Timeout while fetching headers")
+            return await lol.edit("❌ Timeout while fetching headers.")
         except Exception as e:
             logger.error(f"Error fetching headers: {e}")
-            headers = {}
+            return await lol.edit(f"❌ Error fetching headers: {str(e)}")
 
     # Determine file name
     file_name = None
@@ -379,32 +389,42 @@ async def udl_handler(client: Client, message: Message):
             file_name = content_disposition.split("filename=")[1].strip('"\'')
         elif "filename*=" in content_disposition:
             file_name = content_disposition.split("filename*=")[1].split("'")[-1].strip('"\'')
+        logger.info(f"File name from headers: {file_name}")
 
     # If file name is not found in headers, fallback to URL
     if not file_name:
         file_name = os.path.basename(urlparse(url).path) or "downloaded_file"
+        logger.info(f"File name from URL: {file_name}")
 
     # Determine file extension
     if "Content-Type" in headers:
         content_type = headers["Content-Type"]
         file_ext = mimetypes.guess_extension(content_type) or ".bin"
+        logger.info(f"File extension from headers: {file_ext}")
     else:
         file_ext = os.path.splitext(file_name)[1] or ".bin"
+        logger.info(f"File extension from file name: {file_ext}")
 
     # Sanitize file name and add extension if missing
     file_name = sanitize_filename(file_name)
     if not file_name.endswith(file_ext):
         file_name += file_ext
+    logger.info(f"Final file name: {file_name}")
 
     download_path = os.path.join(user_dir, file_name)
 
-    # Start the download using aiohttp
+    # Start the download using aiohttp (GET request)
     async with aiohttp.ClientSession() as session:
         try:
+            # Set a timeout for the GET request
+            timeout = aiohttp.ClientTimeout(total=Config.PROCESS_MAX_TIMEOUT)
             downloaded_file = await download_coroutine(session, url, file_name, headers, download_path, lol, start_time)
+            logger.info(f"Download completed: {downloaded_file}")
         except asyncio.TimeoutError:
+            logger.error("Download timed out")
             return await lol.edit("❌ Download timed out!")
         except Exception as e:
+            logger.error(f"Error during download: {e}")
             return await lol.edit(f"❌ Error during download: {str(e)}")
 
     # Once downloaded, send the file with thumbnail if video
@@ -439,4 +459,5 @@ async def udl_handler(client: Client, message: Message):
                 os.remove(downloaded_file)
             await lol.delete()
     else:
+        logger.error("Downloaded file not found")
         await lol.edit("❌ Downloaded file not found.")
