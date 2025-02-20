@@ -401,7 +401,7 @@ async def udl_handler(client: Client, message: Message):
         content_type = head["Content-Type"]
         file_ext = mimetypes.guess_extension(content_type) or ".bin"
         if file_ext == ".mpv":
-          file_ext == ".mkv"
+          file_ext = ".mkv"
         logger.info(f"File extension from headers: {file_ext}")
     else:
         file_ext = os.path.splitext(file_name)[1] or ".bin"
