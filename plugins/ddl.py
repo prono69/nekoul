@@ -218,10 +218,10 @@ async def udl_handler(client: Client, message: Message):
             url = streamtape(url)
             supported = True
 
-    if supported:
-        status_msg = await message.reply_text("**Supported URL found!**\nBypassing and downloading...")
-    else:
-        status_msg = await message.reply_text("Downloading...")
+    # if supported:
+        # status_msg = await message.reply_text("**Supported URL found!**\nBypassing and downloading...")
+    # else:
+        # status_msg = await message.reply_text("Downloading...")
 
     # Create a temporary directory for this user
     user_dir = os.path.join(Config.DOWNLOAD_LOCATION, str(message.from_user.id))
@@ -269,8 +269,8 @@ async def udl_handler(client: Client, message: Message):
                 progress=progress_for_pyrogram,
                 progress_args=("Uploading...", message, time.time())
             )
-        await status_msg.delete()
+        # await status_msg.delete()
         os.remove(downloaded_file)
     else:
-        await status_msg.edit_text("❌ Downloaded file not found.")
+        await message.reply_text("❌ Downloaded file not found.")
         
