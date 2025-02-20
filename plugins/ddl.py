@@ -14,6 +14,7 @@ from pyrogram.types import Message
 # Import your custom configuration and progress helpers
 from plugins.config import Config
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter
+from plugins.dl_button import download_coroutine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -174,37 +175,7 @@ def generate_thumbnail(video_path: str, thumbnail_path: str) -> None:
 # Download coroutine using aiohttp
 ############################################
 
-async def download_coroutine(session, url: str, file_path: str, message: Message, start_time: float) -> str:
-    downloaded = 0
-    try:
-        async with session.get(url, timeout=Config.PROCESS_MAX_TIMEOUT) as response:
-            total_length = int(response.headers.get("Content-Length", 0))
-            await message.edit_text(f"Initiating Download\nURL: {url}\nFile Size: {humanbytes(total_length)}")
-            with open(file_path, "wb") as f_handle:
-                while True:
-                    chunk = await response.content.read(Config.CHUNK_SIZE)
-                    if not chunk:
-                        break
-                    f_handle.write(chunk)
-                    downloaded += len(chunk)
-                    now = time.time()
-                    diff = now - start_time
-                    # Update progress every ~5 seconds or when finished
-                    if round(diff % 5.00) == 0 or downloaded == total_length:
-                        speed = downloaded / diff if diff > 0 else 0
-                        time_to_completion = round((total_length - downloaded) / speed) if speed > 0 else 0
-                        estimated_total_time = round(diff) + time_to_completion
-                        progress_text = (
-                            f"**Download Status**\nURL: {url}\n"
-                            f"File Size: {humanbytes(total_length)}\n"
-                            f"Downloaded: {humanbytes(downloaded)}\n"
-                            f"ETA: {TimeFormatter(estimated_total_time * 1000)}"
-                        )
-                        await message.edit_text(progress_text)
-            return file_path
-    except Exception as e:
-        logger.error("Error in download_coroutine: %s", e)
-        raise e
+
 
 ############################################
 # Main udl plugin command handler
@@ -265,7 +236,7 @@ async def udl_handler(client: Client, message: Message):
     # Start the download using aiohttp
     async with aiohttp.ClientSession() as session:
         try:
-            downloaded_file = await download_coroutine(session, url, download_path, status_msg, start_time)
+            downloaded_file = await download_coroutine(session, url, download_path, message.chat.id, message.id, start_time)
         except asyncio.TimeoutError:
             return await status_msg.edit_text("❌ Download timed out!")
         except Exception as e:
