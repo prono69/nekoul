@@ -224,6 +224,7 @@ async def udl_handler(client: Client, message: Message):
         # status_msg = await message.reply_text("Downloading...")
 
     # Create a temporary directory for this user
+    await message.reply("Dl......")
     user_dir = os.path.join(Config.DOWNLOAD_LOCATION, str(message.from_user.id))
     if not os.path.isdir(user_dir):
         os.makedirs(user_dir)
@@ -238,9 +239,9 @@ async def udl_handler(client: Client, message: Message):
         try:
             downloaded_file = await download_coroutine(client, session, url, download_path, message.chat.id, message.id, start_time)
         except asyncio.TimeoutError:
-            return await status_msg.edit_text("❌ Download timed out!")
+            return await message.reply("❌ Download timed out!")
         except Exception as e:
-            return await status_msg.edit_text(f"❌ Error during download: {str(e)}")
+            return await message.reply(f"❌ Error during download: {str(e)}")
     
     # Once downloaded, send the file with thumbnail if video
     if os.path.exists(downloaded_file):
