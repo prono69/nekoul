@@ -290,8 +290,8 @@ async def udl_handler(client: Client, message: Message):
         if file_ext in [".mp4", ".mkv", ".avi"]:
             thumb_path = os.path.splitext(downloaded_file)[0] + ".jpg"
             generate_thumbnail(downloaded_file, thumb_path)
-            await client.send_video(
-                chat_id=message.chat.id,
+            await message.reply_video(
+                # chat_id=message.chat.id,
                 video=downloaded_file,
                 thumb=thumb_path if os.path.exists(thumb_path) else None,
                 caption=caption,
@@ -302,8 +302,8 @@ async def udl_handler(client: Client, message: Message):
             if os.path.exists(thumb_path):
                 os.remove(thumb_path)
         else:
-            await client.send_document(
-                chat_id=message.chat.id,
+            await message.reply_document(
+                # chat_id=message.chat.id,
                 document=downloaded_file,
                 caption=caption,
                 reply_to_message_id=message.message_id,
