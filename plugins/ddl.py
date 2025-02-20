@@ -372,7 +372,7 @@ async def udl_handler(client: Client, message: Message):
             # Set a timeout for the HEAD request
             timeout = aiohttp.ClientTimeout(total=10)  # 10 seconds
             async with session.head(url, headers=headers, timeout=timeout) as response:
-                headers = response.headers
+                head = response.headers
                 logger.info(f"Headers fetched: {headers}")
         except asyncio.TimeoutError:
             logger.error("Timeout while fetching headers")
@@ -383,8 +383,8 @@ async def udl_handler(client: Client, message: Message):
 
     # Determine file name
     file_name = None
-    if "Content-Disposition" in headers:
-        content_disposition = headers["Content-Disposition"]
+    if "Content-Disposition" in head:
+        content_disposition = head["Content-Disposition"]
         if "filename=" in content_disposition:
             file_name = content_disposition.split("filename=")[1].strip('"\'')
         elif "filename*=" in content_disposition:
@@ -397,8 +397,8 @@ async def udl_handler(client: Client, message: Message):
         logger.info(f"File name from URL: {file_name}")
 
     # Determine file extension
-    if "Content-Type" in headers:
-        content_type = headers["Content-Type"]
+    if "Content-Type" in head:
+        content_type = head["Content-Type"]
         file_ext = mimetypes.guess_extension(content_type) or ".bin"
         logger.info(f"File extension from headers: {file_ext}")
     else:
