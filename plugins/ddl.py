@@ -469,6 +469,7 @@ async def udl_handler(client: Client, message: Message):
         file_ext = os.path.splitext(downloaded_file)[1].lower()
         caption = f"**File Name:** `{os.path.basename(downloaded_file)}`"
         thumb_path = None
+        sent_message = None  # To store the sent message object
 
         try:
             if file_ext in [".mp4", ".mkv", ".avi"]:
@@ -476,8 +477,8 @@ async def udl_handler(client: Client, message: Message):
                 width, height, duration = await Mdata01(downloaded_file)
                 thumb_image_path = await Gthumb02(client, message, duration, downloaded_file)
 
-                # Send to original chat
-                await message.reply_video(
+                # Send to original chat and store the message object
+                sent_message = await message.reply_video(
                     video=downloaded_file,
                     duration=duration,
                     width=width,
@@ -486,41 +487,26 @@ async def udl_handler(client: Client, message: Message):
                     thumb=thumb_image_path if os.path.exists(thumb_image_path) else None,
                     caption=caption,
                     progress=progress_for_pyrogram,
-                    progress_args=(Translation.UPLOAD_START, lol, time.time())
+                    progress_args=(Translation["UPLOAD_START"], lol, time.time())
                 )
 
-                # Send to DUMP_CHAT_ID
-                if DUMP_CHAT_ID:
-                    await client.send_video(
-                        chat_id=DUMP_CHAT_ID,
-                        video=downloaded_file,
-                        duration=duration,
-                        width=width,
-                        height=height,
-                        supports_streaming=True,
-                        thumb=thumb_image_path if os.path.exists(thumb_image_path) else None,
-                        caption=caption,
-                        # progress=progress_for_pyrogram,
-                        # progress_args=(Translation.UPLOAD_START, lol, time.time())
-                    )
             else:
-                # Send to original chat
-                await message.reply_document(
+                # Send to original chat and store the message object
+                sent_message = await message.reply_document(
                     document=downloaded_file,
                     caption=caption,
                     progress=progress_for_pyrogram,
-                    progress_args=(Translation.UPLOAD_START, lol, time.time())
+                    progress_args=(Translation["UPLOAD_START"], lol, time.time())
                 )
 
-                # Send to DUMP_CHAT_ID
-                if DUMP_CHAT_ID:
-                    await client.send_document(
-                        chat_id=DUMP_CHAT_ID,
-                        document=downloaded_file,
-                        caption=caption,
-                        # progress=progress_for_pyrogram,
-                        # progress_args=(Translation.UPLOAD_START, lol, time.time())
-                    )
+            # Copy the message to dump chat if configured
+            if DUMP_CHAT_ID and sent_message:
+                await client.copy_message(
+                    chat_id=DUMP_CHAT_ID,
+                    from_chat_id=sent_message.chat.id,
+                    message_id=sent_message.id
+                )
+
         finally:
             # Cleanup
             if thumb_image_path and os.path.exists(thumb_image_path):
