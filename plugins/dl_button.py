@@ -21,7 +21,7 @@ from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
 from PIL import Image
-from pyrogram import enums 
+from pyrogram import enums
 
 
 
@@ -30,8 +30,7 @@ async def ddl_call_back(bot, update):
     cb_data = update.data
     # youtube_dl extractors
     tg_send_type, youtube_dl_format, youtube_dl_ext = cb_data.split("=")
-    thumb_image_path = Config.DOWNLOAD_LOCATION + \
-        "/" + str(update.from_user.id) + ".jpg"
+    thumb_image_path = Config.DOWNLOAD_LOCATION + "/" + str(update.from_user.id) + ".jpg"
     youtube_dl_url = update.message.reply_to_message.text
     custom_file_name = os.path.basename(youtube_dl_url)
     if "|" in youtube_dl_url:
@@ -107,16 +106,16 @@ async def ddl_call_back(bot, update):
             file_size = os.stat(download_directory).st_size
         if file_size > Config.TG_MAX_FILE_SIZE:
             await update.message.edit_caption(
-                
                 caption=Translation.RCHD_TG_API_LIMIT,
                 parse_mode=enums.ParseMode.HTML
             )
         else:
-            
             start_time = time.time()
+            sent_message = None  # To store the sent message object
+
             if (await db.get_upload_as_doc(update.from_user.id)) is False:
                 thumbnail = await Gthumb01(bot, update)
-                await update.message.reply_document(
+                sent_message = await update.message.reply_document(
                     document=download_directory,
                     thumb=thumbnail,
                     caption=description,
@@ -129,9 +128,9 @@ async def ddl_call_back(bot, update):
                     )
                 )
             else:
-                 width, height, duration = await Mdata01(download_directory)
-                 thumb_image_path = await Gthumb02(bot, update, duration, download_directory)
-                 await update.message.reply_video(
+                width, height, duration = await Mdata01(download_directory)
+                thumb_image_path = await Gthumb02(bot, update, duration, download_directory)
+                sent_message = await update.message.reply_video(
                     video=download_directory,
                     caption=description,
                     duration=duration,
@@ -147,10 +146,11 @@ async def ddl_call_back(bot, update):
                         start_time
                     )
                 )
+
             if tg_send_type == "audio":
                 duration = await Mdata03(download_directory)
                 thumbnail = await Gthumb01(bot, update)
-                await update.message.reply_audio(
+                sent_message = await update.message.reply_audio(
                     audio=download_directory,
                     caption=description,
                     parse_mode=enums.ParseMode.HTML,
@@ -166,7 +166,7 @@ async def ddl_call_back(bot, update):
             elif tg_send_type == "vm":
                 width, duration = await Mdata02(download_directory)
                 thumbnail = await Gthumb02(bot, update, duration, download_directory)
-                await update.message.reply_video_note(
+                sent_message = await update.message.reply_video_note(
                     video_note=download_directory,
                     duration=duration,
                     length=width,
@@ -180,6 +180,35 @@ async def ddl_call_back(bot, update):
                 )
             else:
                 logger.info("Did this happen? :\\")
+
+            # Send to DUMP_CHAT_ID if configured
+            if Config.DUMP_CHAT_ID and sent_message:
+                await bot.copy_message(
+                    chat_id=Config.DUMP_CHAT_ID,
+                    from_chat_id=sent_message.chat.id,
+                    message_id=sent_message.id
+                )
+
+            # Prepare the formatted message
+            file_name = os.path.basename(download_directory)
+            file_size = humanbytes(file_size)
+            elapsed = TimeFormatter((datetime.now() - start).seconds * 1000)
+            formatted_message = (
+                f"**__{file_name}__**\n"
+                f"┃\n"
+                f"┠ **Size:** {file_size}\n"
+                f"┠ **Elapsed:** {elapsed}\n"
+                f"┠ **Mode:** #DDL\n"
+                f"┠ **Total Files:** 1\n"
+                f"┖ **By:** {update.from_user.mention}\n\n"
+                f"➲ **File(s) have been Sent. Access via Links...**\n\n"
+                f"1. [{file_name}](https://t.me/c/{str(sent_message.chat.id).replace('-100', '')}/{sent_message.id})"
+            )
+
+            # Send the formatted message
+            await update.message.reply_text(formatted_message, disable_web_page_preview=True)
+
+            # Cleanup
             end_two = datetime.now()
             try:
                 os.remove(download_directory)
@@ -190,7 +219,6 @@ async def ddl_call_back(bot, update):
             time_taken_for_upload = (end_two - end_one).seconds
             await update.message.edit_caption(
                 caption=Translation.AFTER_SUCCESSFUL_UPLOAD_MSG_WITH_TS.format(time_taken_for_download, time_taken_for_upload),
-               
                 parse_mode=enums.ParseMode.HTML
             )
     else:

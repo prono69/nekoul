@@ -52,7 +52,7 @@ async def metadata(file):
         return {}
 
         
-async def ss_gen(video_path: str, thumbnail_path: str) -> None:
+async def ss_gen(video_path: str, thumbnail_path: str, duration) -> None:
     """
     Generate a thumbnail screenshot from the video using ffmpeg asynchronously.
     """
@@ -61,8 +61,8 @@ async def ss_gen(video_path: str, thumbnail_path: str) -> None:
         # os.makedirs(des_dir, exist_ok=True)
         
         # Get video duration
-        meta = await metadata(video_path)
-        duration = meta.get("duration", 0)
+        # meta = await metadata(video_path)
+        # duration = meta.get("duration", 0)
         logger.info(f"got the duration {duration}")
         if duration == 0:
             duration = 3

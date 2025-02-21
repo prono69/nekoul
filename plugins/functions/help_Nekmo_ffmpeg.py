@@ -68,6 +68,7 @@ async def take_screen_shot(video_file, output_directory, ttl):
         str(ttl),
         "-i",
         video_file,
+        "-vf", "thumbnail",
         "-vframes",
         "1",
         out_put_file_name

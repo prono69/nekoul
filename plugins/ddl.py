@@ -503,7 +503,7 @@ async def udl_handler(client: Client, message: Message):
                 
                 thumb_image_path = os.path.splitext(downloaded_file)[0] + ".jpg"
                 try:
-                    await ss_gen(downloaded_file, thumb_image_path)
+                    await ss_gen(downloaded_file, thumb_image_path, duration)
                 except Exception as e:
                     logger.error(f"Error generating thumbnail: {e}")
                     thumb_image_path = None

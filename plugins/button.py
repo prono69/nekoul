@@ -185,9 +185,11 @@ async def youtube_dl_call_back(bot, update):
                 caption=Translation.UPLOAD_START.format(custom_file_name)
             )
             start_time = time.time()
+            sent_message = None  # To store the sent message object
+
             if not await db.get_upload_as_doc(update.from_user.id):
                 thumbnail = await Gthumb01(bot, update)
-                await update.message.reply_document(
+                sent_message = await update.message.reply_document(
                     document=download_directory,
                     thumb=thumbnail,
                     caption=description,
@@ -201,7 +203,7 @@ async def youtube_dl_call_back(bot, update):
             else:
                 width, height, duration = await Mdata01(download_directory)
                 thumb_image_path = await Gthumb02(bot, update, duration, download_directory)
-                await update.message.reply_video(
+                sent_message = await update.message.reply_video(
                     video=download_directory,
                     caption=description,
                     duration=duration,
@@ -220,7 +222,7 @@ async def youtube_dl_call_back(bot, update):
             if tg_send_type == "audio":
                 duration = await Mdata03(download_directory)
                 thumbnail = await Gthumb01(bot, update)
-                await update.message.reply_audio(
+                sent_message = await update.message.reply_audio(
                     audio=download_directory,
                     caption=description,
                     duration=duration,
@@ -235,7 +237,7 @@ async def youtube_dl_call_back(bot, update):
             elif tg_send_type == "vm":
                 width, duration = await Mdata02(download_directory)
                 thumbnail = await Gthumb02(bot, update, duration, download_directory)
-                await update.message.reply_video_note(
+                sent_message = await update.message.reply_video_note(
                     video_note=download_directory,
                     duration=duration,
                     length=width,
@@ -250,6 +252,33 @@ async def youtube_dl_call_back(bot, update):
             else:
                 logger.info("✅ " + custom_file_name)
             
+            # Send to DUMP_CHAT_ID if configured
+            if Config.DUMP_CHAT_ID and sent_message:
+                await bot.copy_message(
+                    chat_id=Config.DUMP_CHAT_ID,
+                    from_chat_id=sent_message.chat.id,
+                    message_id=sent_message.id
+                )
+
+            # Prepare the formatted message
+            file_name = os.path.basename(download_directory)
+            file_size = humanbytes(file_size)
+            elapsed = TimeFormatter((datetime.now() - start).seconds * 1000)
+            formatted_message = (
+                f"**{file_name}**\n"
+                f"┃\n"
+                f"┠ **Size:** {file_size}\n"
+                f"┠ **Elapsed:** {elapsed}\n"
+                f"┠ **Mode:** #YouTubeDL\n"
+                f"┠ **Total Files:** 1\n"
+                f"┖ **By:** {update.from_user.mention}\n\n"
+                f"➲ **File(s) have been Sent. Access via Links...**\n\n"
+                f"1. [{file_name}](https://t.me/c/{str(sent_message.chat.id).replace('-100', '')}/{sent_message.id})"
+            )
+
+            # Send the formatted message
+            await update.message.reply_text(formatted_message, disable_web_page_preview=True)
+
             end_two = datetime.now()
             time_taken_for_upload = (end_two - end_one).seconds
             try:
