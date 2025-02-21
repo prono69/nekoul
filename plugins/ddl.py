@@ -492,7 +492,7 @@ async def udl_handler(client: Client, message: Message):
                 height = meta.get("height", 720)
                 
                 thumb_image_path = os.path.splitext(downloaded_file)[0] + ".jpg"
-                await generate_thumbnail(downloaded_file, thumb_path)
+                await generate_thumbnail(downloaded_file, thumb_image_path)
 
                 # Send to original chat and store the message object
                 sent_message = await message.reply_video(
