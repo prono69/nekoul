@@ -81,7 +81,7 @@ async def ss_gen(video_path: str, thumbnail_path: str) -> None:
         duration = duration - (duration * 2 / 100)
         
         # Take screenshot near the end of the adjusted duration
-        command[5] = str(int(duration * 0.98))
+        command[5] = str(int(duration))
 
         process = await asyncio.create_subprocess_exec(
             *command,
