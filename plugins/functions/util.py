@@ -59,19 +59,7 @@ async def ss_gen(video_path: str, thumbnail_path: str) -> None:
     try:
         # des_dir = os.path.join('Thumbnails', f"{time()}")
         # os.makedirs(des_dir, exist_ok=True)
-
-        command = [
-            "ffmpeg",
-            "-hide_banner",
-            "-loglevel", "debug",
-            "-y",
-            "-ss", "",  # Will be set near the end of the duration
-            "-i", video_path,
-            # "-vf", "thumbnail",
-            "-frames:v", "1",
-            thumbnail_path
-        ]
-
+        
         # Get video duration
         meta = await metadata(video_path)
         duration = meta.get("duration", 0)
@@ -81,9 +69,23 @@ async def ss_gen(video_path: str, thumbnail_path: str) -> None:
         duration = duration - (duration * 2 / 100)
         
         # Take screenshot near the end of the adjusted duration
-        command[5] = str(int(duration * 0.95))
-        command[5] = strftime("%H:%M:%S", gmtime(float(command[5])))
-        logger.info(f"Final ss time is {command[5]}")
+        op = str(int(duration))
+        seek_time = strftime("%H:%M:%S", gmtime(float(op)))
+        logger.info(f"Final ss time is {seek_time}")
+
+        command = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel", "debug",
+            "-y",
+            "-ss", seek_time,  # Will be set near the end of the duration
+            "-i", video_path,
+            # "-vf", "thumbnail",
+            "-frames:v", "1",
+            thumbnail_path
+        ]
+
+        
 
         process = await asyncio.create_subprocess_exec(
             *command,
