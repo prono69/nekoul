@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from time import time
+from time import time, strftime, gmtime
 import subprocess
 import logging
 from urllib.parse import unquote
@@ -81,7 +81,8 @@ async def ss_gen(video_path: str, thumbnail_path: str) -> None:
         duration = duration - (duration * 2 / 100)
         
         # Take screenshot near the end of the adjusted duration
-        command[5] = str(int(duration))
+        command[5] = str(int(duration * 0.98))
+        command[5] = strftime("%H:%M:%S", gmtime(float(command[5])))
 
         process = await asyncio.create_subprocess_exec(
             *command,
