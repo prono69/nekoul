@@ -63,11 +63,11 @@ async def ss_gen(video_path: str, thumbnail_path: str) -> None:
         command = [
             "ffmpeg",
             "-hide_banner",
-            "-loglevel", "error",
+            "-loglevel", "debug",
             "-y",
             "-ss", "",  # Will be set near the end of the duration
             "-i", video_path,
-            "-vf", "thumbnail",
+            # "-vf", "thumbnail",
             "-frames:v", "1",
             thumbnail_path
         ]
