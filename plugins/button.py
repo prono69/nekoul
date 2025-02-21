@@ -12,7 +12,7 @@ from pyrogram.types import InputMediaPhoto
 from plugins.config import Config
 from plugins.script import Translation
 from plugins.thumbnail import *
-from plugins.functions.display_progress import progress_for_pyrogram, humanbytes
+from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter, get_readable_time
 from plugins.database.database import db
 from PIL import Image
 from plugins.functions.ran_text import random_char

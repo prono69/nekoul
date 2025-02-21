@@ -17,7 +17,7 @@ from plugins.script import Translation
 from plugins.thumbnail import *
 from plugins.database.database import db
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
-from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter
+from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter, get_readable_time
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
 from PIL import Image
