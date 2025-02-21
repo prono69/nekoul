@@ -1,7 +1,12 @@
 import asyncio
 import json
+import os
+from time import time
 import subprocess
+import logging
 from urllib.parse import unquote
+
+logger = logging.getLogger(__name__)
 
 async def bash(cmd):
     """Run a shell command and return its output."""
@@ -45,3 +50,58 @@ async def metadata(file):
     except Exception as e:
         logger.error(f"Error parsing metadata: {e}")
         return {}
+
+        
+async def ss_gen(video_path: str, thumbnail_path: str) -> None:
+    """
+    Generate a thumbnail screenshot from the video using ffmpeg asynchronously.
+    """
+    try:
+        des_dir = os.path.join('Thumbnails', f"{time()}")
+        os.makedirs(des_dir, exist_ok=True)
+
+        command = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-y",
+            "-ss", "",  # Will be set near the end of the duration
+            "-i", video_path,
+            "-vf", "thumbnail",
+            "-frames:v", "1",
+            "-compression_level", "0",
+            os.path.join(des_dir, "wz_thumb_1.jpg")
+        ]
+
+        # Get video duration
+        meta = await metadata(video_path)
+        duration = meta.get("duration", 0)
+        if duration == 0:
+            duration = 3
+        duration = duration - (duration * 2 / 100)
+        
+        # Take screenshot near the end of the adjusted duration
+        command[5] = str(int(duration * 0.98))
+
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        await process.communicate()
+        
+        if process.returncode == 0:
+            # Move the generated thumbnail to desired location
+            os.rename(
+                os.path.join(des_dir, "wz_thumb_1.jpg"),
+                thumbnail_path
+            )
+        else:
+            raise Exception(f"ffmpeg process returned non-zero exit code: {process.returncode}")
+            
+        # Cleanup temporary directory
+        os.rmdir(des_dir)
+            
+    except Exception as e:
+        logger.error("Error generating thumbnail: %s", e)

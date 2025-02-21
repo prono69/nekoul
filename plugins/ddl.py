@@ -23,7 +23,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 # Import your custom configuration and progress helpers
 from plugins.config import Config
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter
-from plugins.functions.util import metadata
+from plugins.functions.util import metadata, ss_gen
 from plugins.dl_button import download_coroutine
 
 logging.basicConfig(
@@ -193,15 +193,19 @@ def streamtape(url: str) -> str:
 
 async def generate_thumbnail(video_path: str, thumbnail_path: str) -> None:
     """
-    Generate a thumbnail screenshot from the video (at 1 second) using ffmpeg asynchronously.
+    Generate a thumbnail screenshot from the video using ffmpeg asynchronously.
     """
     try:
         command = [
-            "ffmpeg", "-y",
-            "-ss", "00:00:04",
+            "ffmpeg", 
+            "-hide_banner",
+            "-loglevel", "error",
+            "-y",
+            "-ss", "00:00:05",
             "-i", video_path,
+            "-vf", "thumbnail",
             "-frames:v", "1",
-            "-q:v", "2",
+            "-compression_level", "0",
             thumbnail_path
         ]
         process = await asyncio.create_subprocess_exec(
@@ -210,7 +214,6 @@ async def generate_thumbnail(video_path: str, thumbnail_path: str) -> None:
             stderr=asyncio.subprocess.PIPE
         )
         
-        # Wait for the process to complete
         await process.communicate()
         
         if process.returncode != 0:
@@ -229,9 +232,16 @@ mimetypes.init()
 
 def sanitize_filename(filename: str) -> str:
     """
-    Replace invalid characters in filenames with an underscore.
+    Replace invalid characters in filenames with a space
+    and remove any occurrence of substrings that start with 'www' followed by non-whitespace characters.
     """
-    return re.sub(r'[<>:"/\\|?*]', "_", filename)
+    # Replace invalid characters with a space
+    sanitized = re.sub(r'[<>:"/\\|?*]', " ", filename)
+    
+    # Remove substrings starting with 'www' followed by non-whitespace characters
+    sanitized = re.sub(r'www\S+', '', sanitized)
+    
+    return sanitized
 
 
 def parse_content_disposition(content_disposition: str) -> Optional[str]:
@@ -492,7 +502,7 @@ async def udl_handler(client: Client, message: Message):
                 height = meta.get("height", 720)
                 
                 thumb_image_path = os.path.splitext(downloaded_file)[0] + ".jpg"
-                await generate_thumbnail(downloaded_file, thumb_image_path)
+                await ss_gen(downloaded_file, thumb_image_path)
 
                 # Send to original chat and store the message object
                 sent_message = await message.reply_video(
