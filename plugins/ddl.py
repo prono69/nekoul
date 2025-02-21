@@ -487,7 +487,7 @@ async def udl_handler(client: Client, message: Message):
                     thumb=thumb_image_path if os.path.exists(thumb_image_path) else None,
                     caption=caption,
                     progress=progress_for_pyrogram,
-                    progress_args=(Translation["UPLOAD_START"], lol, time.time())
+                    progress_args=(Translation.UPLOAD_START, lol, time.time())
                 )
 
             else:
@@ -496,7 +496,7 @@ async def udl_handler(client: Client, message: Message):
                     document=downloaded_file,
                     caption=caption,
                     progress=progress_for_pyrogram,
-                    progress_args=(Translation["UPLOAD_START"], lol, time.time())
+                    progress_args=(Translation.UPLOAD_START, lol, time.time())
                 )
 
             # Copy the message to dump chat if configured
