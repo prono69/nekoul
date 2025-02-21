@@ -57,8 +57,8 @@ async def ss_gen(video_path: str, thumbnail_path: str) -> None:
     Generate a thumbnail screenshot from the video using ffmpeg asynchronously.
     """
     try:
-        des_dir = os.path.join('Thumbnails', f"{time()}")
-        os.makedirs(des_dir, exist_ok=True)
+        # des_dir = os.path.join('Thumbnails', f"{time()}")
+        # os.makedirs(des_dir, exist_ok=True)
 
         command = [
             "ffmpeg",
@@ -69,20 +69,21 @@ async def ss_gen(video_path: str, thumbnail_path: str) -> None:
             "-i", video_path,
             "-vf", "thumbnail",
             "-frames:v", "1",
-            "-compression_level", "0",
-            os.path.join(des_dir, "wz_thumb_1.jpg")
+            thumbnail_path
         ]
 
         # Get video duration
         meta = await metadata(video_path)
         duration = meta.get("duration", 0)
+        logger.info(f"got the duration {duration}")
         if duration == 0:
             duration = 3
         duration = duration - (duration * 2 / 100)
         
         # Take screenshot near the end of the adjusted duration
-        command[5] = str(int(duration * 0.98))
+        command[5] = str(int(duration * 0.95))
         command[5] = strftime("%H:%M:%S", gmtime(float(command[5])))
+        logger.info(f"Final ss time is {command[5]}")
 
         process = await asyncio.create_subprocess_exec(
             *command,
@@ -94,15 +95,16 @@ async def ss_gen(video_path: str, thumbnail_path: str) -> None:
         
         if process.returncode == 0:
             # Move the generated thumbnail to desired location
-            os.rename(
-                os.path.join(des_dir, "wz_thumb_1.jpg"),
-                thumbnail_path
-            )
+            # os.rename(
+                # os.path.join(des_dir, "wz_thumb_1.jpg"),
+                # thumbnail_path
+            #)
+            logger.info("DONE")
         else:
             raise Exception(f"ffmpeg process returned non-zero exit code: {process.returncode}")
             
         # Cleanup temporary directory
-        os.rmdir(des_dir)
+        # os.rmdir(des_dir)
             
     except Exception as e:
         logger.error("Error generating thumbnail: %s", e)
