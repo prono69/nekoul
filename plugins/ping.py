@@ -39,7 +39,7 @@ def waifu_random():
 
 async def fetch_server_status():
     """Fetch the server status from the given URL."""
-    url = "https://kawaiimizo-riasudl.hf.space/health"
+    url = "https://kawaiimizo-riasudl.hf.space/status"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:

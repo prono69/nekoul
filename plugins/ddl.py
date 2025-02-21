@@ -319,7 +319,7 @@ async def download_coroutine(
                 while True:
                     # Check if the download has been canceled
                     if cancel_flag.get("cancel", False):
-                        await progress_message.edit_text("❌ Download canceled.")
+                        await message.reply("❌ Download canceled.")
                         if os.path.exists(file_path):
                             os.remove(file_path)
                         return None
@@ -381,7 +381,7 @@ async def udl_handler(client: Client, message: Message):
     text = message.text
     args = text.split(maxsplit=1)
     headers = {}
-    if len(args) < 2:
+    if not message.reply_to_message and len(args) < 2:
         return await message.reply_text("Usage: .le [URL]")
     url = args[1].strip()
     if not url and message.reply_to_message and message.reply_to_message.text:
