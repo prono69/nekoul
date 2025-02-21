@@ -80,12 +80,11 @@ async def ss_gen(video_path: str, thumbnail_path: str) -> None:
             "-y",
             "-ss", seek_time,  # Will be set near the end of the duration
             "-i", video_path,
-            # "-vf", "thumbnail",
+            "-vf", "thumbnail",
             "-frames:v", "1",
+            "-compression_level", "0",
             thumbnail_path
         ]
-
-        
 
         process = await asyncio.create_subprocess_exec(
             *command,

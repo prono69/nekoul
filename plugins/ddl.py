@@ -502,7 +502,11 @@ async def udl_handler(client: Client, message: Message):
                 height = meta.get("height", 720)
                 
                 thumb_image_path = os.path.splitext(downloaded_file)[0] + ".jpg"
-                await ss_gen(downloaded_file, thumb_image_path)
+                try:
+                    await ss_gen(downloaded_file, thumb_image_path)
+                except Exception as e:
+                    logger.error(f"Error generating thumbnail: {e}")
+                    thumb_image_path = None
 
                 # Send to original chat and store the message object
                 sent_message = await message.reply_video(
@@ -525,6 +529,24 @@ async def udl_handler(client: Client, message: Message):
                     progress=progress_for_pyrogram,
                     progress_args=(Translation.UPLOAD_START, lol, time.time())
                 )
+
+            # Prepare the formatted message
+            file_size = humanbytes(os.path.getsize(downloaded_file))
+            elapsed = TimeFormatter((time.time() - start_time) * 1000)
+            formatted_message = (
+                f"**__{file_name}__**\n"
+                f"┃\n"
+                f"┠ **Size:** {file_size}\n"
+                f"┠ **Elapsed:** {elapsed}\n"
+                f"┠ **Mode:** #UDL\n"
+                f"┠ **Total Files:** 1\n"
+                f"┖ **By:** {message.from_user.mention}\n\n"
+                f"➲ **__File(s) have been Sent. Access via Links...__**\n\n"
+                f"1. [{file_name}](https://t.me/c/{str(message.chat.id).replace('-100', '')}/{sent_message.id})"
+            )
+
+            # Send the formatted message
+            await message.reply_text(formatted_message, disable_web_page_preview=True)
 
             # Copy the message to dump chat if configured
             if DUMP_CHAT_ID and sent_message:
