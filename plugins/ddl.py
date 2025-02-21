@@ -11,12 +11,14 @@ import subprocess
 from datetime import datetime
 from re import findall
 from pathlib import PurePath
+from plugins.thumbnail import *
 from typing import Dict, Optional, Tuple
 from urllib.parse import urlparse, unquote_plus
 from plugins.script import Translation
 
 from pyrogram import Client, filters, enums
 from pyrogram.types import Message
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Import your custom configuration and progress helpers
 from plugins.config import Config
@@ -29,6 +31,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
+
+DUMP_CHAT_ID = -1001973199110
 
 ############################################
 # Helper functions for direct download links
@@ -266,22 +270,38 @@ async def download_coroutine(
     headers: Dict[str, str], 
     file_path: str, 
     message: Message, 
-    start_time: float
+    start_time: float,
+    cancel_flag: Dict[str, bool]  # Shared flag to signal cancellation
 ) -> str:
     """
-    Download a file from the given URL with optional headers.
+    Download a file from the given URL with optional headers and a cancel button.
     """
     downloaded = 0
     last_update_time = start_time
     last_progress_text = ""
 
+    # Create a cancel button
+    cancel_button = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_download")]]
+    )
+
     try:
         async with session.get(url, headers=headers, timeout=Config.PROCESS_MAX_TIMEOUT) as response:
             total_length = int(response.headers.get("Content-Length", 0))
-            await message.edit_text(f"📥 **Initiating Download**\n\n**File Name:** `{file_name}`\n**File Size:** {humanbytes(total_length)}")
+            progress_message = await message.edit(
+                f"📥 **Initiating Download**\n\n**File Name:** `{file_name}`\n**File Size:** {humanbytes(total_length)}",
+                reply_markup=cancel_button
+            )
 
             with open(file_path, "wb") as f_handle:
                 while True:
+                    # Check if the download has been canceled
+                    if cancel_flag.get("cancel", False):
+                        await progress_message.edit_text("❌ Download canceled.")
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                        return None
+
                     chunk = await response.content.read(Config.CHUNK_SIZE)
                     if not chunk:
                         break
@@ -310,7 +330,10 @@ async def download_coroutine(
 
                         # Only update the message if the content has changed
                         if progress_text != last_progress_text:
-                            await message.edit_text(progress_text)
+                            await progress_message.edit(
+                                progress_text,
+                                reply_markup=cancel_button
+                            )
                             last_progress_text = progress_text
                             last_update_time = now
 
@@ -318,6 +341,16 @@ async def download_coroutine(
     except Exception as e:
         logger.error("Error in download_coroutine: %s", e)
         raise e
+
+
+@Client.on_callback_query(filters.regex("^cancel_download$"))
+async def cancel_download_handler(client: Client, callback_query: CallbackQuery):
+    """
+    Handle the cancel button click.
+    """
+    # Set the cancel flag to True
+    cancel_flag["cancel"] = True
+    await callback_query.answer("Download canceled.")
 
 
 @Client.on_message(filters.command("le"))
@@ -401,15 +434,15 @@ async def udl_handler(client: Client, message: Message):
         content_type = head["Content-Type"]
         file_ext = mimetypes.guess_extension(content_type) or ".bin"
         if file_ext == ".mpv":
-          file_ext = ".mkv"
+            file_ext = ".mkv"
         logger.info(f"File extension from headers: {file_ext}")
     else:
         file_ext = os.path.splitext(file_name)[1] or ".bin"
         logger.info(f"File extension from file name: {file_ext}")
 
     # Sanitize file name and add extension if missing
-    file_name = unquote_plus(file_name)
-    file_name = sanitize_filename(file_name)
+    file_name_ = unquote_plus(file_name)
+    file_name = sanitize_filename(file_name_)
     if not file_name.endswith(file_ext):
         file_name += file_ext
     logger.info(f"Final file name: {file_name}")
@@ -438,26 +471,59 @@ async def udl_handler(client: Client, message: Message):
 
         try:
             if file_ext in [".mp4", ".mkv", ".avi"]:
-                thumb_path = os.path.splitext(downloaded_file)[0] + ".jpg"
-                generate_thumbnail(downloaded_file, thumb_path)
+                # Generate thumbnail and metadata
+                width, height, duration = await Mdata01(downloaded_file)
+                thumb_image_path = await Gthumb02(client, message, duration, downloaded_file)
+
+                # Send to original chat
                 await message.reply_video(
                     video=downloaded_file,
-                    thumb=thumb_path if os.path.exists(thumb_path) else None,
+                    duration=duration,
+                    width=width,
+                    height=height,
+                    supports_streaming=True,
+                    thumb=thumb_image_path if os.path.exists(thumb_image_path) else None,
                     caption=caption,
                     progress=progress_for_pyrogram,
                     progress_args=(Translation.UPLOAD_START, lol, time.time())
                 )
+
+                # Send to DUMP_CHAT_ID
+                if DUMP_CHAT_ID:
+                    await client.send_video(
+                        chat_id=Config.DUMP_CHAT_ID,
+                        video=downloaded_file,
+                        duration=duration,
+                        width=width,
+                        height=height,
+                        supports_streaming=True,
+                        thumb=thumb_image_path if os.path.exists(thumb_image_path) else None,
+                        caption=caption,
+                        # progress=progress_for_pyrogram,
+                        # progress_args=(Translation.UPLOAD_START, lol, time.time())
+                    )
             else:
+                # Send to original chat
                 await message.reply_document(
                     document=downloaded_file,
                     caption=caption,
                     progress=progress_for_pyrogram,
                     progress_args=(Translation.UPLOAD_START, lol, time.time())
                 )
+
+                # Send to DUMP_CHAT_ID
+                if DUMP_CHAT_ID:
+                    await client.send_document(
+                        chat_id=Config.DUMP_CHAT_ID,
+                        document=downloaded_file,
+                        caption=caption,
+                        # progress=progress_for_pyrogram,
+                        # progress_args=(Translation.UPLOAD_START, lol, time.time())
+                    )
         finally:
             # Cleanup
-            if thumb_path and os.path.exists(thumb_path):
-                os.remove(thumb_path)
+            if thumb_image_path and os.path.exists(thumb_image_path):
+                os.remove(thumb_image_path)
             if os.path.exists(downloaded_file):
                 os.remove(downloaded_file)
             await lol.delete()
