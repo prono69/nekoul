@@ -22,7 +22,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Import your custom configuration and progress helpers
 from plugins.config import Config
-from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter
+from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter, get_readable_time
 from plugins.functions.util import metadata, ss_gen
 from plugins.dl_button import download_coroutine
 
@@ -347,7 +347,7 @@ async def download_coroutine(
                             f"**Progress:** [{progress_bar}] {round(percentage, 2)}%\n"
                             f"**Downloaded:** {humanbytes(downloaded)} of {humanbytes(total_length)}\n"
                             f"**Speed:** {humanbytes(speed)}/s\n"
-                            f"**ETA:** {TimeFormatter(time_to_completion * 1000)}"
+                            f"**ETA:** {get_readable_time(time_to_completion)}"
                         )
 
                         # Only update the message if the content has changed
@@ -532,7 +532,7 @@ async def udl_handler(client: Client, message: Message):
 
             # Prepare the formatted message
             file_size = humanbytes(os.path.getsize(downloaded_file))
-            elapsed = TimeFormatter((time.time() - start_time) * 1000)
+            elapsed = get_readable_time((time.time() - start_time))
             formatted_message = (
                 f"**__{file_name}__**\n"
                 f"┃\n"
