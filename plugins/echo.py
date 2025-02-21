@@ -32,8 +32,7 @@ from pyrogram.types import Thumbnail
 
 
 
-
-@Client.on_message(filters.regex(pattern="^(?!.*\+)http.*"))
+@Client.on_message(filters.private & filters.regex(pattern="^(?!.*\+)http.*"))
 async def echo(bot, update):
     if update.from_user.id != Config.OWNER_ID:  
         if not await check_verification(bot, update.from_user.id) and Config.TRUE_OR_FALSE:
@@ -56,11 +55,11 @@ async def echo(bot, update):
             log_info += "\nUser ID: " + str(update.from_user.id)
             log_info += "\nUsername: @" + (update.from_user.username if update.from_user.username else "")
             log_info += "\nUser Link: " + update.from_user.mention
-            await log_message.reply_text(
-                text=log_info,
-                disable_web_page_preview=True,
-                quote=True
-            )
+            # await log_message.reply_text(
+                # text=log_info,
+                # disable_web_page_preview=True,
+                # quote=True
+            #)
         except Exception as error:
             print(error)
     if not update.from_user:

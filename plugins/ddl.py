@@ -336,7 +336,7 @@ async def download_coroutine(
                     if now - last_update_time >= 5 or downloaded == total_length:
                         percentage = (downloaded / total_length) * 100
                         speed = downloaded / diff if diff > 0 else 0
-                        time_to_completion = round((total_length - downloaded) / speed) if speed > 0 else 0
+                        time_to_completion = round((total_length - downloaded) / speed) * 1000 if speed > 0 else 0
                         estimated_total_time = round(diff) + time_to_completion
 
                         # Stylish progress bar
@@ -347,7 +347,7 @@ async def download_coroutine(
                             f"**Progress:** [{progress_bar}] {round(percentage, 2)}%\n"
                             f"**Downloaded:** {humanbytes(downloaded)} of {humanbytes(total_length)}\n"
                             f"**Speed:** {humanbytes(speed)}/s\n"
-                            f"**ETA:** {get_readable_time(time_to_completion)}"
+                            f"**ETA:** {TimeFormatter(time_to_completion)}"
                         )
 
                         # Only update the message if the content has changed
