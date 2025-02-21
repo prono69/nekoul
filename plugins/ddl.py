@@ -448,13 +448,14 @@ async def udl_handler(client: Client, message: Message):
     logger.info(f"Final file name: {file_name}")
 
     download_path = os.path.join(user_dir, file_name)
+    cancel_flag = {"cancel": False}
 
     # Start the download using aiohttp (GET request)
     async with aiohttp.ClientSession() as session:
         try:
             # Set a timeout for the GET request
             timeout = aiohttp.ClientTimeout(total=Config.PROCESS_MAX_TIMEOUT)
-            downloaded_file = await download_coroutine(session, url, file_name, headers, download_path, lol, start_time)
+            downloaded_file = await download_coroutine(session, url, file_name, headers, download_path, lol, start_time, cancel_flag)
             logger.info(f"Download completed: {downloaded_file}")
         except asyncio.TimeoutError:
             logger.error("Download timed out")
@@ -491,7 +492,7 @@ async def udl_handler(client: Client, message: Message):
                 # Send to DUMP_CHAT_ID
                 if DUMP_CHAT_ID:
                     await client.send_video(
-                        chat_id=Config.DUMP_CHAT_ID,
+                        chat_id=DUMP_CHAT_ID,
                         video=downloaded_file,
                         duration=duration,
                         width=width,
@@ -514,7 +515,7 @@ async def udl_handler(client: Client, message: Message):
                 # Send to DUMP_CHAT_ID
                 if DUMP_CHAT_ID:
                     await client.send_document(
-                        chat_id=Config.DUMP_CHAT_ID,
+                        chat_id=DUMP_CHAT_ID,
                         document=downloaded_file,
                         caption=caption,
                         # progress=progress_for_pyrogram,
