@@ -23,6 +23,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 # Import your custom configuration and progress helpers
 from plugins.config import Config
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter
+from plugins.functions.util import metadata
 from plugins.dl_button import download_coroutine
 
 logging.basicConfig(
@@ -190,20 +191,31 @@ def streamtape(url: str) -> str:
 # Thumbnail generation using ffmpeg
 ############################################
 
-def generate_thumbnail(video_path: str, thumbnail_path: str) -> None:
+async def generate_thumbnail(video_path: str, thumbnail_path: str) -> None:
     """
-    Generate a thumbnail screenshot from the video (at 1 second) using ffmpeg.
+    Generate a thumbnail screenshot from the video (at 1 second) using ffmpeg asynchronously.
     """
     try:
         command = [
             "ffmpeg", "-y",
-            "-ss", "00:00:01",
+            "-ss", "00:00:04",
             "-i", video_path,
             "-frames:v", "1",
             "-q:v", "2",
             thumbnail_path
         ]
-        subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        # Wait for the process to complete
+        await process.communicate()
+        
+        if process.returncode != 0:
+            raise Exception(f"ffmpeg process returned non-zero exit code: {process.returncode}")
+            
     except Exception as e:
         logger.error("Error generating thumbnail: %s", e)
 
@@ -468,14 +480,19 @@ async def udl_handler(client: Client, message: Message):
     if os.path.exists(downloaded_file):
         file_ext = os.path.splitext(downloaded_file)[1].lower()
         caption = f"**File Name:** `{os.path.basename(downloaded_file)}`"
-        thumb_path = None
+        thumb_image_path = None
         sent_message = None  # To store the sent message object
 
         try:
-            if file_ext in [".mp4", ".mkv", ".avi"]:
+            if file_ext in [".mp4", ".mkv", ".avi", ".mov"]:
                 # Generate thumbnail and metadata
-                width, height, duration = await Mdata01(downloaded_file)
-                thumb_image_path = await Gthumb02(client, message, duration, downloaded_file)
+                meta = await metadata(downloaded_file)
+                duration = meta.get("duration", 0)
+                width = meta.get("width", 1280)
+                height = meta.get("height", 720)
+                
+                thumb_image_path = os.path.splitext(downloaded_file)[0] + ".jpg"
+                await generate_thumbnail(downloaded_file, thumb_path)
 
                 # Send to original chat and store the message object
                 sent_message = await message.reply_video(
