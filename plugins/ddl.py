@@ -11,6 +11,7 @@ import subprocess
 from datetime import datetime
 from re import findall
 from pathlib import PurePath
+from mime_ext import get_extension
 from plugins.thumbnail import *
 from typing import Dict, Optional, Tuple
 from urllib.parse import urlparse, unquote_plus
@@ -227,7 +228,7 @@ async def generate_thumbnail(video_path: str, thumbnail_path: str) -> None:
 ############################################
 
 # Initialize mimetypes
-mimetypes.init()
+# mimetypes.init()
 
 
 def sanitize_filename(filename: str) -> str:
@@ -454,7 +455,7 @@ async def udl_handler(client: Client, message: Message):
     # Determine file extension
     if "Content-Type" in head:
         content_type = head["Content-Type"]
-        file_ext = mimetypes.guess_extension(content_type) or ".bin"
+        file_ext = get_extension(content_type)
         if file_ext == ".mpv":
             file_ext = ".mkv"
         logger.info(f"File extension from headers: {file_ext}")
@@ -538,7 +539,7 @@ async def udl_handler(client: Client, message: Message):
                 f"┃\n"
                 f"┠ **Size:** {file_size}\n"
                 f"┠ **Elapsed:** {elapsed}\n"
-                f"┠ **Mode:** #UDL\n"
+                f"┠ **Mode:** #leech\n"
                 f"┠ **Total Files:** 1\n"
                 f"┖ **By:** {message.from_user.mention}\n\n"
                 f"➲ **__File(s) have been Sent. Access via Links...__**\n\n"

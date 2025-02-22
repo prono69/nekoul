@@ -8,6 +8,7 @@ GitPython
 tgcrypto-pyrofork
 olefile
 motor
+mimetypes-extension
 pytz
 utils
 pymongo
