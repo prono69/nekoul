@@ -309,7 +309,7 @@ async def download_coroutine(
     )
 
     try:
-        async with session.get(url, headers=headers, timeout=Config.PROCESS_MAX_TIMEOUT) as response:
+        async with session.get(url, headers=headers, timeout=Config.PROCESS_MAX_TIMEOUT, allow_redirects=True) as response:
             total_length = int(response.headers.get("Content-Length", 0))
             progress_message = await message.edit(
                 f"📥 **Initiating Download**\n\n**File Name:** `{file_name}`\n**File Size:** {humanbytes(total_length)}",
