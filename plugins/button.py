@@ -200,7 +200,7 @@ async def youtube_dl_call_back(bot, update):
                         start_time
                     )
                 )
-            else:
+            elif tg_send_type == "video":
                 width, height, duration = await Mdata01(download_directory)
                 thumb_image_path = await Gthumb02(bot, update, duration, download_directory)
                 sent_message = await update.message.reply_video(
@@ -219,7 +219,7 @@ async def youtube_dl_call_back(bot, update):
                     )
                 )
             
-            if tg_send_type == "audio":
+            elif tg_send_type == "audio":
                 duration = await Mdata03(download_directory)
                 thumbnail = await Gthumb01(bot, update)
                 sent_message = await update.message.reply_audio(
@@ -250,7 +250,18 @@ async def youtube_dl_call_back(bot, update):
                     )
                 )
             else:
-                logger.info("✅ " + custom_file_name)
+                thumbnail = await Gthumb01(bot, update)
+                sent_message = await update.message.reply_document(
+                    document=download_directory,
+                    thumb=thumbnail,
+                    caption=description,
+                    progress=progress_for_pyrogram,
+                    progress_args=(
+                        Translation.UPLOAD_START,
+                        update.message,
+                        start_time
+                    )
+                )
             
             # Send to DUMP_CHAT_ID if configured
             if Config.DUMP_CHAT_ID and sent_message:
