@@ -427,7 +427,7 @@ async def udl_handler(client: Client, message: Message):
         try:
             # Set a timeout for the HEAD request
             timeout = aiohttp.ClientTimeout(total=10)  # 10 seconds
-            async with session.head(url, headers=headers, timeout=timeout) as response:
+            async with session.head(url, headers=headers, timeout=timeout, allow_redirects=True) as response:
                 head = response.headers
                 logger.info(f"Headers fetched: {headers}")
         except asyncio.TimeoutError:

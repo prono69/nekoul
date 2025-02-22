@@ -23,7 +23,7 @@ ffmpeg
 aiofiles
 pyromod
 yt-dlp[default,curl-cffi]
-lk21
+wget
 pytube
 fastapi
 uvicorn[standard]

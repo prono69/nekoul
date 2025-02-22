@@ -80,21 +80,22 @@ async def aboutme(_, m: Message):
         disable_web_page_preview=True,
     )
 
-@Client.on_message(filters.private & filters.reply & filters.text)
+@Client.on_message(filters.command("cap") & filters.private & filters.reply & filters.text)
 async def edit_caption(bot, update):
     await AddUser(bot, update)
+    text = update.text.split(" ", maxsplit=1)[1]
     try:
         await bot.send_cached_media(
             chat_id=update.chat.id,
             file_id=update.reply_to_message.video.file_id,
-            caption=update.text
+            caption=text
         )
     except:
         try:
             await bot.send_cached_media(
                 chat_id=update.chat.id,
                 file_id=update.reply_to_message.document.file_id,
-                caption=update.text
+                caption=text
             )
         except:
             pass

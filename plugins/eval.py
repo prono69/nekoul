@@ -65,7 +65,20 @@ async def eval(client, message):
  
 async def aexec(code, client, message):
     exec(
-        "async def __aexec(client, message): "
-        + "".join(f"\n {l_}" for l_ in code.split("\n"))
+        (
+            "async def __aexec(client, message):\n"
+            + " import os\n"
+            + " import wget\n"
+            + " import requests\n"
+            + " neo = message\n"
+            + " e = message = event = neo\n"
+            + " r = reply = message.reply_to_message\n"
+            + " chat = message.chat.id\n"
+            + " c = client\n"
+            + " to_photo = message.reply_photo\n"
+            + " to_video = message.reply_video\n"
+            + " p = print\n"
+        )
+        + "".join(f"\n {l}" for l in code.split("\n"))
     )
     return await locals()["__aexec"](client, message)
