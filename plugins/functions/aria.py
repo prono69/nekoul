@@ -98,7 +98,7 @@ async def download_coroutine(
                 break
 
             # Log the raw output for debugging
-            logger.debug(f"aria2lol output: {line.decode().strip()}")
+            logger.debug(f"aria2c output: {line.decode().strip()}")
 
             now = time.time()
             diff = now - start_time
@@ -112,7 +112,7 @@ async def download_coroutine(
                     downloaded = float(parts[1].split("/")[0].replace("MiB", "")) * 1024 * 1024  # Convert MiB to bytes
                     total_length = float(parts[1].split("/")[1].split("(")[0].replace("MiB", "")) * 1024 * 1024  # Convert MiB to bytes
                     percentage = float(parts[1].split("(")[1].replace("%)", ""))
-                    speed = float(parts[3].split(":")[1].replace("MiB", "")) * 1024 * 1024  # Convert MiB/s to bytes/s
+                    speed = float(parts[3].split(":")[1].replace("MiB", "").rstrip("]")) * 1024 * 1024  # Remove trailing ']' and convert MiB/s to bytes/s
                     time_to_completion = round((total_length - downloaded) / speed) if speed > 0 else 0
                 except (ValueError, IndexError, AttributeError) as e:
                     logger.error(f"Error parsing progress: {e}")
