@@ -447,6 +447,9 @@ async def udl_handler(client: Client, message: Message):
         elif "filename*=" in content_disposition:
             file_name = content_disposition.split("filename*=")[1].split("'")[-1].strip('"\'')
         logger.info(f"File name from headers: {file_name}")
+        
+    if "Content-Length" in head:
+      total_length = int(head.get("Content-Length", 0))
 
     # If file name is not found in headers, fallback to URL
     if not file_name:
@@ -479,7 +482,7 @@ async def udl_handler(client: Client, message: Message):
         try:
             # Set a timeout for the GET request
             timeout = aiohttp.ClientTimeout(total=Config.PROCESS_MAX_TIMEOUT)
-            downloaded_file = await download_coroutine(url, file_name, download_path, headers, lol, start_time, cancel_flag)
+            downloaded_file = await download_coroutine(url, file_name, download_path, headers, total_length, lol, start_time, cancel_flag)
             logger.info(f"Download completed: {downloaded_file}")
         except asyncio.TimeoutError:
             logger.error("Download timed out")

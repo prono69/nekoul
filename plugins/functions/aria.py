@@ -39,7 +39,8 @@ async def download_coroutine(
     url: str, 
     file_name: str, 
     file_path: str, 
-    headers: Dict[str, str], 
+    headers: Dict[str, str],
+    total_length,
     message: Message, 
     start_time: float,
     cancel_flag: Dict[str, bool],  # Shared flag to signal cancellation
@@ -53,6 +54,7 @@ async def download_coroutine(
         aria2_options = {}
 
     cancel_button = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel", callback_data="cancel_download")]])
+    progress_message = await message.edit(f"📥 **Initiating Download**\n\n**File Name:** `{file_name}`\n**File Size:** {humanbytes(total_length)}", reply_markup=cancel_button)
 
     # Ensure the directory exists
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -125,7 +127,7 @@ async def download_coroutine(
                     )
 
                     if progress_text != last_progress_text:
-                        await message.edit(progress_text, reply_markup=cancel_button)
+                        await progress_message.edit(progress_text, reply_markup=cancel_button)
                         last_progress_text = progress_text
                         last_update_time = now
 
