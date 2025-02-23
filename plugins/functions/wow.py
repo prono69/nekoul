@@ -48,6 +48,12 @@ async def parallel_download(session, url, file_path, total_size, num_chunks, can
     # Pre-allocate file size
     with open(file_path, "wb") as f:
         f.truncate(total_size)
+        
+    # Check if the download was canceled
+    if cancel_flag.get("cancel", False):
+        await message.reply("❌ Download canceled.")
+        os.remove(file_path)
+        return None    
 
     # Start download tasks
     for i in range(num_chunks):
@@ -89,11 +95,6 @@ async def parallel_download(session, url, file_path, total_size, num_chunks, can
     monitor_task = asyncio.create_task(monitor_progress())
     await asyncio.gather(*tasks)
     monitor_task.cancel()  # Stop the progress monitor
-
-    # Check if the download was canceled
-    if cancel_flag.get("cancel", False):
-        os.remove(file_path)
-        return None
 
     return file_path
     
