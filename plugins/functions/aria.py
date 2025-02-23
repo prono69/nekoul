@@ -61,7 +61,7 @@ async def download_coroutine(
 
     # Construct the aria2c command
     cmd = [
-        "aria2c", "-l", "-", "-x", "16", "-s", "16", "-k", "1M", "--allow-overwrite=true",
+        "aria2c", "-l", "-", "--log-level", "notice", "-x", "16", "-s", "16", "-k", "1M", "--allow-overwrite=true",
         "-o", file_name, "-d", os.path.dirname(file_path), url
     ]
 
@@ -96,8 +96,9 @@ async def download_coroutine(
             line = await process.stdout.readline()
             if not line:
                 break
-              
-            logger.debug(f"aria2c output: {line.decode().strip()}")  
+
+            # Log the raw output for debugging
+            logger.debug(f"aria2lol output: {line.decode().strip()}")
 
             now = time.time()
             diff = now - start_time
@@ -106,14 +107,15 @@ async def download_coroutine(
             line = line.decode().strip()
             if "%" in line:
                 try:
-                    # Example line: "[#1 SIZE:10.0MiB/100.0MiB(10%) CN:1 SPD:1.0MiBs ETA:10s]"
+                    # Example line: "[#1c59fa 3.0MiB/7.6MiB(39%) CN:1 DL:5.1MiB]"
                     parts = line.split()
-                    percentage = float(parts[2].split("(")[1].replace("%)", ""))
-                    downloaded = float(parts[1].split(":")[1].replace("MiB", "")) * 1024 * 1024  # Convert MiB to bytes
-                    speed = float(parts[3].split(":")[1].replace("MiBs", "")) * 1024 * 1024  # Convert MiB/s to bytes/s
-                    total_length = float(parts[1].split("/")[1].replace("MiB", "")) * 1024 * 1024  # Convert MiB to bytes
+                    downloaded = float(parts[1].split("/")[0].replace("MiB", "")) * 1024 * 1024  # Convert MiB to bytes
+                    total_length = float(parts[1].split("/")[1].split("(")[0].replace("MiB", "")) * 1024 * 1024  # Convert MiB to bytes
+                    percentage = float(parts[1].split("(")[1].replace("%)", ""))
+                    speed = float(parts[3].split(":")[1].replace("MiB", "")) * 1024 * 1024  # Convert MiB/s to bytes/s
                     time_to_completion = round((total_length - downloaded) / speed) if speed > 0 else 0
-                except (ValueError, IndexError, AttributeError):
+                except (ValueError, IndexError, AttributeError) as e:
+                    logger.error(f"Error parsing progress: {e}")
                     continue  # Skip if parsing fails
 
                 # Update every 5 seconds or when finished
@@ -129,12 +131,12 @@ async def download_coroutine(
                     )
 
                     if progress_text != last_progress_text:
-                      try:
-                        await progress_message.edit(progress_text, reply_markup=cancel_button)
-                        last_progress_text = progress_text
-                        last_update_time = now
-                      except Exception as e:
-                        logger.error(f"Error editing message: {e}")
+                        try:
+                            await progress_message.edit(progress_text, reply_markup=cancel_button)
+                            last_progress_text = progress_text
+                            last_update_time = now
+                        except Exception as e:
+                            logger.error(f"Error editing message: {e}")
 
         # Wait for process to complete
         await process.wait()
