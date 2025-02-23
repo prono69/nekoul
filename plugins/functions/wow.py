@@ -20,6 +20,13 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from plugins.config import Config
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter, get_readable_time
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+logging.getLogger("pyrogram").setLevel(logging.WARNING)
+
 
 async def download_chunk(session, url, start, end, file_path, cancel_flag, progress_queue):
     """Download a specific chunk of the file."""
@@ -95,6 +102,8 @@ async def parallel_download(session, url, file_path, total_size, num_chunks, can
     monitor_task = asyncio.create_task(monitor_progress())
     await asyncio.gather(*tasks)
     monitor_task.cancel()  # Stop the progress monitor
+    
+    logger.info(f"The path is {file_path}")
 
     return file_path
     
@@ -139,6 +148,8 @@ async def normal_download(session, url, file_path, message, file_name, total_siz
                         await message.reply(progress_text, reply_markup=cancel_button)
                         last_progress_text = progress_text
                         last_update_time = now
+    logger.info(f"The file path is {file_path}")                    
+
 
     return file_path
     

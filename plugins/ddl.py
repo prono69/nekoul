@@ -498,14 +498,14 @@ async def udl_handler(client: Client, message: Message):
         try:
             if file_ext in [".mp4", ".mkv", ".avi", ".mov"]:
                 # Generate thumbnail and metadata
-                meta = await metadata(downloaded_file)
+                meta = await metadata(download_path)
                 duration = meta.get("duration", 0)
                 width = meta.get("width", 1280)
                 height = meta.get("height", 720)
                 
-                thumb_image_path = os.path.splitext(downloaded_file)[0] + ".jpg"
+                thumb_image_path = os.path.splitext(download_path)[0] + ".jpg"
                 try:
-                    await ss_gen(downloaded_file, thumb_image_path, duration)
+                    await ss_gen(download_path, thumb_image_path, duration)
                 except Exception as e:
                     logger.error(f"Error generating thumbnail: {e}")
                     thumb_image_path = None
