@@ -25,7 +25,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from plugins.config import Config
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter, get_readable_time
 from plugins.functions.util import metadata, ss_gen
-from plugins.dl_button import download_coroutine
+from plugins.functions.wow import *
 
 logging.basicConfig(
     level=logging.INFO,
@@ -285,7 +285,7 @@ def get_filename(headers: Dict[str, str], url: str, unique_id: str) -> str:
     return PurePath(sanitize_filename(filename))
 
 
-
+"""
 async def download_coroutine(
     session, 
     url: str, 
@@ -296,9 +296,9 @@ async def download_coroutine(
     start_time: float,
     cancel_flag: Dict[str, bool]  # Shared flag to signal cancellation
 ) -> str:
-    """
+    "
     Download a file from the given URL with optional headers and a cancel button.
-    """
+    "
     downloaded = 0
     last_update_time = start_time
     last_progress_text = ""
@@ -364,17 +364,18 @@ async def download_coroutine(
     except Exception as e:
         logger.error("Error in download_coroutine: %s", e)
         raise e
+"""
 
-
+"""
 @Client.on_callback_query(filters.regex("^cancel_download$"))
 async def cancel_download_handler(client: Client, callback_query: CallbackQuery):
-    """
+    "
     Handle the cancel button click.
-    """
+    "
     # Set the cancel flag to True
     cancel_flag["cancel"] = True
     await callback_query.answer("Download canceled.")
-
+"""
 
 @Client.on_message(filters.command("le"))
 async def udl_handler(client: Client, message: Message):
