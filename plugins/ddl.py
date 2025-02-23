@@ -25,7 +25,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from plugins.config import Config
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter, get_readable_time
 from plugins.functions.util import metadata, ss_gen
-from plugins.functions.wow import *
+from plugins.functions.aria import download_coroutine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -479,7 +479,7 @@ async def udl_handler(client: Client, message: Message):
         try:
             # Set a timeout for the GET request
             timeout = aiohttp.ClientTimeout(total=Config.PROCESS_MAX_TIMEOUT)
-            downloaded_file = await download_coroutine(session, url, file_name, headers, download_path, lol, start_time, cancel_flag)
+            downloaded_file = await download_coroutine(url, file_name, download_path, headers, lol, start_time, cancel_flag)
             logger.info(f"Download completed: {downloaded_file}")
         except asyncio.TimeoutError:
             logger.error("Download timed out")
@@ -498,14 +498,14 @@ async def udl_handler(client: Client, message: Message):
         try:
             if file_ext in [".mp4", ".mkv", ".avi", ".mov"]:
                 # Generate thumbnail and metadata
-                meta = await metadata(download_path)
+                meta = await metadata(downloaded_file)
                 duration = meta.get("duration", 0)
                 width = meta.get("width", 1280)
                 height = meta.get("height", 720)
                 
-                thumb_image_path = os.path.splitext(download_path)[0] + ".jpg"
+                thumb_image_path = os.path.splitext(downloaded_file)[0] + ".jpg"
                 try:
-                    await ss_gen(download_path, thumb_image_path, duration)
+                    await ss_gen(downloaded_file, thumb_image_path, duration)
                 except Exception as e:
                     logger.error(f"Error generating thumbnail: {e}")
                     thumb_image_path = None

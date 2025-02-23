@@ -41,6 +41,12 @@ RUN wget -q https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.
     && mv ffmpeg-git-*-amd64-static/ffmpeg ffmpeg-git-*-amd64-static/ffprobe /usr/local/bin/ \
     && rm -rf ffmpeg-git-* ffmpeg-git-amd64-static.tar.xz*
     
+# Install aria2c static binary
+RUN wget -q https://github.com/P3TERX/aria2-builder/releases/download/1.35.0_2020.09.04/aria2-1.35.0-static-linux-amd64.tar.gz \
+    && tar -xf aria2-1.35.0-static-linux-amd64.tar.gz \
+    && mv aria2-1.35.0-static-linux-amd64/aria2c /usr/local/bin/ \
+    && rm -rf aria2-1.35.0-static-linux-amd64.tar.gz aria2-1.35.0-static-linux-amd64
+    
 # Create user with UID 1000 (Hugging Face requirement)
 RUN useradd -m -u 1000 user
  
