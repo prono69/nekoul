@@ -17,6 +17,26 @@ aria2c_global = [
     'split', 'min-split-size', 'max-connection-per-server'
 ]
 
+
+# Map units to their byte multipliers
+unit_to_bytes = {
+    "KiB": 1024,  # 1 KiB = 1024 bytes
+    "MiB": 1024 * 1024,  # 1 MiB = 1024 * 1024 bytes
+    "GiB": 1024 * 1024 * 1024,  # 1 GiB = 1024 * 1024 * 1024 bytes
+    "KB": 1000,  # 1 KB = 1000 bytes
+    "MB": 1000 * 1000,  # 1 MB = 1000 * 1000 bytes
+    "GB": 1000 * 1000 * 1000,  # 1 GB = 1000 * 1000 * 1000 bytes
+}
+
+def convert_to_bytes(value: str) -> float:
+    """
+    Convert a value with unit (e.g., '1.0GiB') to bytes.
+    """
+    for unit, multiplier in unit_to_bytes.items():
+        if value.endswith(unit):
+            return float(value.replace(unit, "")) * multiplier
+    return float(value)  # If no unit is found, assume bytes
+
 # Utility functions
 def humanbytes(size: float) -> str:
     """Convert bytes to human-readable format."""
@@ -107,16 +127,16 @@ async def download_coroutine(
             line = line.decode().strip()
             if "%" in line:
                 try:
-                    # Example line: "[#1c59fa 3.0MiB/7.6MiB(39%) CN:1 DL:5.1MiB]"
+                    # Example line: "[#1c59fa 3.0MiB/7.6GiB(39%) CN:1 DL:1.0GiB]"
                     parts = line.split()
-                    downloaded = float(parts[1].split("/")[0].replace("MiB", "")) * 1024 * 1024  # Convert MiB to bytes
-                    total_length = float(parts[1].split("/")[1].split("(")[0].replace("MiB", "")) * 1024 * 1024  # Convert MiB to bytes
+                    downloaded = convert_to_bytes(parts[1].split("/")[0])  # Convert downloaded size to bytes
+                    total_length = convert_to_bytes(parts[1].split("/")[1].split("(")[0])  # Convert total size to bytes
                     percentage = float(parts[1].split("(")[1].replace("%)", ""))
-                    speed = float(parts[3].split(":")[1].replace("MiB", "").rstrip("]")) * 1024 * 1024  # Remove trailing ']' and convert MiB/s to bytes/s
+                    speed = convert_to_bytes(parts[3].split(":")[1].rstrip("]"))  # Convert speed to bytes/s
                     time_to_completion = round((total_length - downloaded) / speed) if speed > 0 else 0
                 except (ValueError, IndexError, AttributeError) as e:
                     logger.error(f"Error parsing progress: {e}")
-                    continue  # Skip if parsing fails
+                    continue  # Skip the rest of the loop and move to the next line
 
                 # Update every 5 seconds or when finished
                 if now - last_update_time >= 5 or percentage == 100:
