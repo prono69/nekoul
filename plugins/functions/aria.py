@@ -96,6 +96,8 @@ async def download_coroutine(
             line = await process.stdout.readline()
             if not line:
                 break
+              
+            logger.debug(f"aria2c output: {line.decode().strip()}")  
 
             now = time.time()
             diff = now - start_time
@@ -127,9 +129,12 @@ async def download_coroutine(
                     )
 
                     if progress_text != last_progress_text:
+                      try:
                         await progress_message.edit(progress_text, reply_markup=cancel_button)
                         last_progress_text = progress_text
                         last_update_time = now
+                      except Exception as e:
+                        logger.error(f"Error editing message: {e}")
 
         # Wait for process to complete
         await process.wait()
