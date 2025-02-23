@@ -125,38 +125,42 @@ async def download_coroutine(
 
             # Extract progress percentage, downloaded size, and speed
             line = line.decode().strip()
-            if "%" in line:
-                try:
-                    # Example line: "[#1c59fa 3.0MiB/7.6GiB(39%) CN:1 DL:1.0GiB]"
-                    parts = line.split()
-                    downloaded = convert_to_bytes(parts[1].split("/")[0])  # Convert downloaded size to bytes
-                    total_length = convert_to_bytes(parts[1].split("/")[1].split("(")[0])  # Convert total size to bytes
-                    percentage = float(parts[1].split("(")[1].replace("%)", ""))
-                    speed = convert_to_bytes(parts[3].split(":")[1].rstrip("]"))  # Convert speed to bytes/s
-                    time_to_completion = round((total_length - downloaded) / speed) if speed > 0 else 0
-                except (ValueError, IndexError, AttributeError) as e:
-                    logger.error(f"Error parsing progress: {e}")
-                    continue  # Skip the rest of the loop and move to the next line
 
-                # Update every 5 seconds or when finished
-                if now - last_update_time >= 5 or percentage == 100:
-                    progress_bar = "⬢" * int(percentage / 5) + "⬡" * (20 - int(percentage / 5))
-                    progress_text = (
-                        f"📥 **Downloading...**\n\n"
-                        f"**File Name:** `{file_name}`\n"
-                        f"**Progress:** [{progress_bar}] {round(percentage, 2)}%\n"
-                        f"**Downloaded:** {humanbytes(downloaded)} of {humanbytes(total_length)}\n"
-                        f"**Speed:** {humanbytes(speed)}/s\n"
-                        f"**ETA:** {TimeFormatter(time_to_completion * 1000)}"
-                    )
+            # Skip lines that don't contain a progress percentage
+            if "%" not in line:
+                continue  # Skip non-progress lines
 
-                    if progress_text != last_progress_text:
-                        try:
-                            await progress_message.edit(progress_text, reply_markup=cancel_button)
-                            last_progress_text = progress_text
-                            last_update_time = now
-                        except Exception as e:
-                            logger.error(f"Error editing message: {e}")
+            try:
+                # Example line: "[#1c59fa 3.0MiB/7.6GiB(39%) CN:1 DL:1.0GiB]"
+                parts = line.split()
+                downloaded = convert_to_bytes(parts[1].split("/")[0])  # Convert downloaded size to bytes
+                total_length = convert_to_bytes(parts[1].split("/")[1].split("(")[0])  # Convert total size to bytes
+                percentage = float(parts[1].split("(")[1].replace("%)", ""))
+                speed = convert_to_bytes(parts[3].split(":")[1].rstrip("]"))  # Convert speed to bytes/s
+                time_to_completion = round((total_length - downloaded) / speed) if speed > 0 else 0
+            except (ValueError, IndexError, AttributeError) as e:
+                logger.error(f"Error parsing progress: {e}")
+                continue  # Skip the rest of the loop and move to the next line
+
+            # Update every 5 seconds or when finished
+            if now - last_update_time >= 5 or percentage == 100:
+                progress_bar = "⬢" * int(percentage / 5) + "⬡" * (20 - int(percentage / 5))
+                progress_text = (
+                    f"📥 **Downloading...**\n\n"
+                    f"**File Name:** `{file_name}`\n"
+                    f"**Progress:** [{progress_bar}] {round(percentage, 2)}%\n"
+                    f"**Downloaded:** {humanbytes(downloaded)} of {humanbytes(total_length)}\n"
+                    f"**Speed:** {humanbytes(speed)}/s\n"
+                    f"**ETA:** {TimeFormatter(time_to_completion * 1000)}"
+                )
+
+                if progress_text != last_progress_text:
+                    try:
+                        await progress_message.edit(progress_text, reply_markup=cancel_button)
+                        last_progress_text = progress_text
+                        last_update_time = now
+                    except Exception as e:
+                        logger.error(f"Error editing message: {e}")
 
         # Wait for process to complete
         await process.wait()
