@@ -12,7 +12,7 @@ from re import findall
 from pathlib import PurePath
 from mime_ext import get_extension
 from typing import Dict, Optional, Tuple
-from pyrogram import Client
+from pyrogram import Client, filters
 from urllib.parse import urlparse, unquote_plus
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -81,7 +81,7 @@ async def parallel_download(session, url, file_path, total_size, num_chunks, can
                 )
 
                 if progress_text != last_progress_text:
-                    await message.edit(progress_text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel", callback_data="cancel_download")]]))
+                    await message.reply(progress_text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel", callback_data="cancel_download")]]))
                     last_progress_text = progress_text
                     last_update_time = now
 
@@ -135,7 +135,7 @@ async def normal_download(session, url, file_path, message, file_name, total_siz
                     )
 
                     if progress_text != last_progress_text:
-                        await message.edit(progress_text, reply_markup=cancel_button)
+                        await message.reply(progress_text, reply_markup=cancel_button)
                         last_progress_text = progress_text
                         last_update_time = now
 
