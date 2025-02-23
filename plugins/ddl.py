@@ -440,6 +440,7 @@ async def udl_handler(client: Client, message: Message):
 
     # Determine file name
     file_name = None
+    total_length = None
     if "Content-Disposition" in head:
         content_disposition = head["Content-Disposition"]
         if "filename=" in content_disposition:

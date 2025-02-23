@@ -61,7 +61,7 @@ async def download_coroutine(
 
     # Construct the aria2c command
     cmd = [
-        "aria2c", "-x", "16", "-s", "16", "-k", "1M", "--allow-overwrite=true",
+        "aria2c", "-l", "-", "-x", "16", "-s", "16", "-k", "1M", "--allow-overwrite=true",
         "-o", file_name, "-d", os.path.dirname(file_path), url
     ]
 
