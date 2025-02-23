@@ -28,20 +28,36 @@ logger = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 
-async def download_chunk(session, url, start, end, file_path, cancel_flag, progress_queue):
-    """Download a specific chunk of the file."""
+async def download_chunk(session, url, start, end, chunk_path, cancel_flag, progress_queue, retries=3):
+    """Download a specific chunk of the file with retries."""
     headers = {"Range": f"bytes={start}-{end}"}
-    async with session.get(url, headers=headers, allow_redirects=True) as response:
-        if response.status != 200 and response.status != 206:
-            raise Exception(f"Failed to download chunk: {response.status}")
+    for attempt in range(retries):
+        try:
+            async with session.get(url, headers=headers, allow_redirects=True) as response:
+                if response.status != 200 and response.status != 206:
+                    raise Exception(f"Failed to download chunk: {response.status}")
 
-        with open(file_path, "r+b") as f:
-            f.seek(start)
-            async for chunk in response.content.iter_any():
-                if cancel_flag.get("cancel", False):
-                    return None  # Cancelled
-                f.write(chunk)
-                await progress_queue.put(len(chunk))  # Send progress update
+                with open(chunk_path, "wb") as f:
+                    async for chunk in response.content.iter_any():
+                        if cancel_flag.get("cancel", False):
+                            return None  # Cancelled
+                        f.write(chunk)
+                        await progress_queue.put(len(chunk))  # Send progress update
+                break  # Success
+        except Exception as e:
+            if attempt == retries - 1:
+                raise e
+            await asyncio.sleep(1)  # Wait before retrying
+                
+                
+async def merge_chunks(chunk_paths, output_file):
+    """Merge downloaded chunks into the final file."""
+    with open(output_file, "wb") as outfile:
+        for chunk_path in sorted(chunk_paths):
+            with open(chunk_path, "rb") as infile:
+                outfile.write(infile.read())
+            os.remove(chunk_path)  # Clean up chunk file
+            
 
 async def parallel_download(session, url, file_path, total_size, num_chunks, cancel_flag, message, file_name, start_time):
     """Download the file in parallel using range requests."""
@@ -51,11 +67,17 @@ async def parallel_download(session, url, file_path, total_size, num_chunks, can
     downloaded = 0
     last_update_time = start_time
     last_progress_text = ""
+    chunk_paths = []
+    cancel_button = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel", callback_data="cancel_download")]])
+
+    # Create a temporary directory for chunks
+    temp_dir = "temp_chunks"
+    os.makedirs(temp_dir, exist_ok=True)
 
     # Pre-allocate file size
     with open(file_path, "wb") as f:
         f.truncate(total_size)
-        
+
     # Check if the download was canceled
     if cancel_flag.get("cancel", False):
         await message.reply("❌ Download canceled.")
@@ -66,7 +88,9 @@ async def parallel_download(session, url, file_path, total_size, num_chunks, can
     for i in range(num_chunks):
         start = i * chunk_size
         end = total_size - 1 if i == num_chunks - 1 else (start + chunk_size - 1)
-        tasks.append(download_chunk(session, url, start, end, file_path, cancel_flag, progress_queue))
+        chunk_path = os.path.join(temp_dir, f"chunk_{i}")
+        chunk_paths.append(chunk_path)
+        tasks.append(download_chunk(session, url, start, end, chunk_path, cancel_flag, progress_queue))
 
     # Start a task to monitor progress
     async def monitor_progress():
@@ -94,7 +118,7 @@ async def parallel_download(session, url, file_path, total_size, num_chunks, can
                 )
 
                 if progress_text != last_progress_text:
-                    await message.reply(progress_text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel", callback_data="cancel_download")]]))
+                    await message.reply(progress_text, reply_markup=cancel_button)
                     last_progress_text = progress_text
                     last_update_time = now
 
@@ -102,9 +126,12 @@ async def parallel_download(session, url, file_path, total_size, num_chunks, can
     monitor_task = asyncio.create_task(monitor_progress())
     await asyncio.gather(*tasks)
     monitor_task.cancel()  # Stop the progress monitor
-    
-    logger.info(f"The path is {file_path}")
 
+    # Merge chunks into the final file
+    await merge_chunks(chunk_paths, file_path)
+    os.rmdir(temp_dir)  # Clean up temp directory
+
+    logger.info(f"The path is {file_path}")
     return file_path
     
     
