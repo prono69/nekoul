@@ -81,8 +81,8 @@ async def download_coroutine(
 
     # Construct the aria2c command
     cmd = [
-        "aria2c", "-l", "-", "--log-level", "notice", "-k", "1M", "--allow-overwrite=true",
-        "-o", file_name, "-d", os.path.dirname(file_path), url
+        "aria2c", "-l", "-", "--log-level", "notice", "-k", "1M", "--allow-overwrite=true"
+        # "-o", file_name, "-d", os.path.dirname(file_path), url
     ]
 
     # Add custom headers if provided
@@ -91,9 +91,13 @@ async def download_coroutine(
 
     # Add aria2_options to the command (only valid global options)
     for key, value in aria2_options.items():
-        cmd.extend([f"--{key}", str(value)])
+        if isinstance(value, bool):
+          cmd.append(f"--{key}={str(value).lower()}") # Handle boolean options
+        else:
+          cmd.extend([f"--{key}", str(value)])
         # if key in aria2c_global:  # Only add valid global options
             
+    cmd.extend(["-o", file_name, "-d", os.path.dirname(file_path), url])        
 
     # Start aria2c process
     process = await asyncio.create_subprocess_exec(
@@ -139,6 +143,9 @@ async def download_coroutine(
                 percentage = float(parts[1].split("(")[1].replace("%)", ""))
                 speed = convert_to_bytes(parts[3].split(":")[1].rstrip("]"))  # Convert speed to bytes/s
                 time_to_completion = round((total_length - downloaded) / speed) if speed > 0 else 0
+                if downloaded is None or total_length is None:
+                  logger.error(f"Invalid progress line: {line}")
+                  continue
             except (ValueError, IndexError, AttributeError) as e:
                 logger.error(f"Error parsing progress: {e}")
                 continue  # Skip the rest of the loop and move to the next line
