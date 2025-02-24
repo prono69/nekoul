@@ -66,7 +66,7 @@ class Config(object):
         "optimize-concurrent-downloads": True,  # Optimize concurrent downloads
         "http-accept-gzip": True,  # Enable gzip compression for HTTP downloads
         "max-tries": "5",  # Retry up to 5 times
-        "quiet": True,  # Suppress non-essential output
+        # "quiet": True,  # Suppress non-essential output
         "summary-interval": "0",  # Disable periodic summary output
         "max-upload-limit": "1K",  # Limit upload speed to 1KB/s
         "content-disposition-default-utf8": True,  # Use UTF-8 for content disposition
