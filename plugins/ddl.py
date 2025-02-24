@@ -383,6 +383,7 @@ async def udl_handler(client: Client, message: Message):
     text = message.text
     args = text.split(maxsplit=1)
     headers = {}
+    aria2_options = getattr(Config, 'ARIA_OPTIONS', {})
     if not message.reply_to_message and len(args) < 2:
         return await message.reply_text("Usage: .le [URL]")
     url = args[1].strip()
@@ -483,7 +484,7 @@ async def udl_handler(client: Client, message: Message):
         try:
             # Set a timeout for the GET request
             timeout = aiohttp.ClientTimeout(total=Config.PROCESS_MAX_TIMEOUT)
-            downloaded_file = await download_coroutine(url, file_name, download_path, headers, total_length, lol, start_time, cancel_flag)
+            downloaded_file = await download_coroutine(url, file_name, download_path, headers, total_length, lol, start_time, cancel_flag, aria2_options)
             logger.info(f"Download completed: {downloaded_file}")
         except asyncio.TimeoutError:
             logger.error("Download timed out")

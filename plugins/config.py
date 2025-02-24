@@ -53,5 +53,25 @@ class Config(object):
 
     # Verification video link
     VERIFICATION = os.environ.get("VERIFICATION", "")
+    ARIA_OPTIONS = {
+        # "allow-overwrite": "true",  # Overwrite existing files
+        "auto-file-renaming": "true",  # Automatically rename files if they exist
+        "max-connection-per-server": "10",  # Allow up to 16 connections per server
+        "max-concurrent-downloads": "10",  # Allow up to 16 parallel downloads
+        "split": "10",  # Split each file into 16 chunks
+        "min-split-size": "10M",  # Only split files larger than 10MB
+        "check-integrity": "true",  # Verify file integrity after download
+        "continue": "true",  # Resume interrupted downloads
+        "disk-cache": "40M",  # Use a 40MB disk cache
+        "optimize-concurrent-downloads": "true",  # Optimize concurrent downloads
+        "http-accept-gzip": "true",  # Enable gzip compression for HTTP downloads
+        "max-tries": "5",  # Retry up to 5 times
+        "quiet": "true",  # Suppress non-essential output
+        "summary-interval": "0",  # Disable periodic summary output
+        "max-upload-limit": "1K",  # Limit upload speed to 1KB/s
+        "content-disposition-default-utf8": "true",  # Use UTF-8 for content disposition
+        "user-agent": "Wget/1.12",  # Set user agent for HTTP downloads
+        "reuse-uri": "true",  # Reuse URIs for multiple connections
+    }    
 
     

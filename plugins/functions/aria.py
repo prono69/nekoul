@@ -81,7 +81,7 @@ async def download_coroutine(
 
     # Construct the aria2c command
     cmd = [
-        "aria2c", "-l", "-", "--log-level", "notice", "-x", "16", "-s", "16", "-k", "1M", "--allow-overwrite=true",
+        "aria2c", "-l", "-", "--log-level", "notice", "-k", "1M", "--allow-overwrite=true",
         "-o", file_name, "-d", os.path.dirname(file_path), url
     ]
 
@@ -91,8 +91,9 @@ async def download_coroutine(
 
     # Add aria2_options to the command (only valid global options)
     for key, value in aria2_options.items():
-        if key in aria2c_global:  # Only add valid global options
-            cmd.extend([f"--{key}", str(value)])
+        cmd.extend([f"--{key}", str(value)])
+        # if key in aria2c_global:  # Only add valid global options
+            
 
     # Start aria2c process
     process = await asyncio.create_subprocess_exec(
