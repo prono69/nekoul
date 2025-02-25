@@ -1,11 +1,14 @@
 name: Remove Unused Imports and Optimize Imports
 
 on:
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   remove-unused-imports:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # Grant write permissions to the GITHUB_TOKEN
 
     steps:
       - name: Checkout repository
