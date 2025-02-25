@@ -173,9 +173,8 @@ def streamtape(url: str) -> str:
     return f"https://streamtape.com/get_video?id={_id}{links[-1]}"
     
     
-def terabox(terabox_url, api_keys):
+def get_terabox_link(terabox_url, api_keys):
     url = "https://terabox-downloader-direct-download-link-generator2.p.rapidapi.com/url"
-    # Split api keys by space and choose random one
     api_key = random.choice(api_keys.split())
     
     headers = {
@@ -188,7 +187,7 @@ def terabox(terabox_url, api_keys):
         response = requests.get(url, headers=headers, params=querystring)
         response.raise_for_status()
         data = response.json()
-        return data.get("link")
+        return data[0]["link"] if data and isinstance(data, list) else None
     except Exception as e:
         return f"Error: {str(e)}"
         
@@ -328,4 +327,24 @@ def send_cm(url):
     
     # If there are multiple contents, raise an exception or handle accordingly
     raise DirectDownloadLinkException("Multiple contents found. This function only supports single-file downloads.")
+    
+    
+def streamtape(url):
+    splitted_url = url.split("/")
+    _id = (
+        splitted_url[4]
+        if len(splitted_url) >= 6
+        else splitted_url[-1]
+    )
+    try:
+        with Session() as session:
+            html = HTML(session.get(url).text)
+    except Exception as e:
+        raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+    script = html.xpath("//script[contains(text(),'ideoooolink')]/text()") or html.xpath("//script[contains(text(),'ideoolink')]/text()")
+    if not script:
+        raise DirectDownloadLinkException("ERROR: requeries script not found")
+    if not (link := findall(r"(&expires\S+)'", script[0])):
+        raise DirectDownloadLinkException("ERROR: Download link not found")
+    return f"https://streamtape.com/get_video?id={_id}{link[-1]}"
     

@@ -266,6 +266,8 @@ async def udl_handler(client: Client, message: Message):
         elif "send.cm" in domain:
         	  dl_link, headers = send_cm(url)
         	  url = dl_link
+        elif any(x in domain for x in ["streamtape.com", "streamtape.co", "streamtape.cc", "streamtape.to", "streamtape.net", "streamta.pe", "streamtape.xyz", "streamtape.site"]):
+            url = streamtape(url)
              
 
     lol = await message.reply("📥 **Downloading...**")
