@@ -51,6 +51,9 @@ async def metadata(file):
         logger.error(f"Error parsing metadata: {e}")
         return {}
 
+############################################
+# Thumbnail generation using ffmpeg
+############################################
         
 async def ss_gen(video_path: str, thumbnail_path: str, duration) -> None:
     """
@@ -109,3 +112,36 @@ async def ss_gen(video_path: str, thumbnail_path: str, duration) -> None:
             
     except Exception as e:
         logger.error("Error generating thumbnail: %s", e)
+        
+        
+
+async def generate_thumbnail(video_path: str, thumbnail_path: str) -> None:
+    """
+    Generate a thumbnail screenshot from the video using ffmpeg asynchronously.
+    """
+    try:
+        command = [
+            "ffmpeg", 
+            "-hide_banner",
+            "-loglevel", "error",
+            "-y",
+            "-ss", "00:00:05",
+            "-i", video_path,
+            "-vf", "thumbnail",
+            "-frames:v", "1",
+            "-compression_level", "0",
+            thumbnail_path
+        ]
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        await process.communicate()
+        
+        if process.returncode != 0:
+            raise Exception(f"ffmpeg process returned non-zero exit code: {process.returncode}")
+            
+    except Exception as e:
+        logger.error("Error generating thumbnail: %s", e)        

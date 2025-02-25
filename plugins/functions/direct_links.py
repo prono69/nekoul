@@ -173,7 +173,7 @@ def streamtape(url: str) -> str:
     return f"https://streamtape.com/get_video?id={_id}{links[-1]}"
     
     
-def get_terabox_link(terabox_url, api_keys):
+def terabox(terabox_url, api_keys):
     url = "https://terabox-downloader-direct-download-link-generator2.p.rapidapi.com/url"
     api_key = random.choice(api_keys.split())
     
@@ -348,3 +348,14 @@ def streamtape(url):
         raise DirectDownloadLinkException("ERROR: Download link not found")
     return f"https://streamtape.com/get_video?id={_id}{link[-1]}"
     
+    
+
+def streamtape_name(url):
+    try:
+        with Session() as s:
+            page = HTML(s.get(url).content)
+            if page_title := page.xpath('//title/text()'):
+                cleaned_title = page_title[0].replace(" at Streamtape.com", "").strip()
+                return cleaned_title
+    except:
+        return None    

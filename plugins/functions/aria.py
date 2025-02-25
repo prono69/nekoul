@@ -40,7 +40,7 @@ def convert_to_bytes(value: str) -> float:
 
 
 # Download function
-async def download_coroutine(
+async def aria_dl(
     url: str, 
     file_name: str, 
     file_path: str, 

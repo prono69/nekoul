@@ -1,4 +1,3 @@
-import mimetypes
 import logging
 import asyncio
 import aiohttp
@@ -18,14 +17,13 @@ from urllib.parse import urlparse, unquote_plus
 from plugins.script import Translation
 
 from pyrogram import Client, filters, enums
-from pyrogram.types import Message
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
 # Import your custom configuration and progress helpers
 from plugins.config import Config
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter, get_readable_time
 from plugins.functions.util import metadata, ss_gen
-from plugins.dl_button import download_coroutine
+from plugins.functions.aria import aria_dl
 from plugins.functions.direct_links import *
 
 logging.basicConfig(
@@ -37,10 +35,6 @@ logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 DUMP_CHAT_ID = -1001973199110
 
-############################################
-# Download coroutine using aiohttp
-############################################
-
 
 def sanitize_filename(filename: str) -> str:
     """
@@ -49,143 +43,14 @@ def sanitize_filename(filename: str) -> str:
     """
     # Replace invalid characters with a space
     sanitized = re.sub(r'[<>:"/\\|?*]', " ", filename)
+    
     # Remove substrings starting with 'www' followed by non-whitespace characters
     sanitized = re.sub(r'www\S+', '', sanitized)
+    
     return sanitized
 
 
-def parse_content_disposition(content_disposition: str) -> Optional[str]:
-    """
-    Parse the Content-Disposition header to extract the filename.
-    """
-    parts = content_disposition.split(";")
-    filename = None
-    for part in parts:
-        part = part.strip()
-        if part.startswith("filename="):
-            filename = part.split("=", 1)[1].strip(' "')
-        elif part.startswith("filename*="):
-            match = re.match(r"filename\*=(\S*)''(.*)", part)
-            if match:
-                encoding, value = match.groups()
-                try:
-                    filename = unquote_plus(value, encoding=encoding)
-                except ValueError:
-                    filename = None
-    return filename
-
-
-def get_filename(headers: Dict[str, str], url: str, unique_id: str) -> str:
-    """
-    Determine the filename from HTTP headers, URL, or generate a default.
-    """
-    filename = None
-    if headers.get("Content-Disposition"):
-        filename = parse_content_disposition(headers["Content-Disposition"])
-    if not filename:
-        filename = unquote_plus(url.rstrip("/").split("/")[-1].strip(' "'))
-    if not filename or "." not in filename:
-        if headers.get("Content-Type"):
-            extension = mimetypes.guess_extension(headers["Content-Type"])
-            filename = f"{unique_id}{extension or ''}".strip()
-        else:
-            filename = unique_id
-    filename = unquote_plus(filename.strip().replace("/", "_"))
-    return PurePath(sanitize_filename(filename))
-
-
-
-async def download_coroutine(
-    session, 
-    url: str, 
-    file_name: str, 
-    headers: Dict[str, str], 
-    file_path: str, 
-    message: Message, 
-    start_time: float,
-    cancel_flag: Dict[str, bool]  # Shared flag to signal cancellation
-) -> str:
-    """
-    Download a file from the given URL with optional headers and a cancel button.
-    """
-    downloaded = 0
-    last_update_time = start_time
-    last_progress_text = ""
-
-    # Create a cancel button
-    cancel_button = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_download")]]
-    )
-
-    try:
-        async with session.get(url, headers=headers, timeout=Config.PROCESS_MAX_TIMEOUT, allow_redirects=True) as response:
-            total_length = int(response.headers.get("Content-Length", 0))
-            progress_message = await message.edit(
-                f"📥 **Initiating Download**\n\n**File Name:** `{file_name}`\n**File Size:** {humanbytes(total_length)}",
-                reply_markup=cancel_button
-            )
-
-            with open(file_path, "wb") as f_handle:
-                while True:
-                    # Check if the download has been canceled
-                    if cancel_flag.get("cancel", False):
-                        await message.reply("❌ Download canceled.")
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
-                        return None
-
-                    chunk = await response.content.read(Config.CHUNK_SIZE)
-                    if not chunk:
-                        break
-                    f_handle.write(chunk)
-                    downloaded += len(chunk)
-                    now = time.time()
-                    diff = now - start_time
-
-                    # Update progress every ~2 seconds or when finished
-                    if now - last_update_time >= 5 or downloaded == total_length:
-                        percentage = (downloaded / total_length) * 100
-                        speed = downloaded / diff if diff > 0 else 0
-                        time_to_completion = round((total_length - downloaded) / speed) * 1000 if speed > 0 else 0
-                        estimated_total_time = round(diff) + time_to_completion
-
-                        # Stylish progress bar
-                        progress_bar = "⬢" * int(percentage / 5) + "⬡" * (20 - int(percentage / 5))
-                        progress_text = (
-                            f"📥 **Downloading...**\n\n"
-                            f"**File Name:** `{file_name}`\n"
-                            f"**Progress:** [{progress_bar}] {round(percentage, 2)}%\n"
-                            f"**Downloaded:** {humanbytes(downloaded)} of {humanbytes(total_length)}\n"
-                            f"**Speed:** {humanbytes(speed)}/s\n"
-                            f"**ETA:** {TimeFormatter(time_to_completion)}"
-                        )
-
-                        # Only update the message if the content has changed
-                        if progress_text != last_progress_text:
-                            await progress_message.edit(
-                                progress_text,
-                                reply_markup=cancel_button
-                            )
-                            last_progress_text = progress_text
-                            last_update_time = now
-
-            return file_path
-    except Exception as e:
-        logger.error("Error in download_coroutine: %s", e)
-        raise e
-
-
-@Client.on_callback_query(filters.regex("^cancel_download$"))
-async def cancel_download_handler(client: Client, callback_query: CallbackQuery):
-    """
-    Handle the cancel button click.
-    """
-    # Set the cancel flag to True
-    cancel_flag["cancel"] = True
-    await callback_query.answer("Download canceled.")
-
-
-@Client.on_message(filters.command("le"))
+@Client.on_message(filters.command("la"))
 async def udl_handler(client: Client, message: Message):
     start_time = time.time()
     text = message.text
@@ -231,6 +96,7 @@ async def udl_handler(client: Client, message: Message):
         elif any(x in domain for x in ["streamtape.com", "streamtape.co", "streamtape.cc", "streamtape.to", "streamtape.net", "streamta.pe", "streamtape.xyz", "streamtape.site"]):
             url = streamtape(url)
              
+
     
     user_dir = os.path.join(Config.DOWNLOAD_LOCATION, str(message.from_user.id))
     os.makedirs(user_dir, exist_ok=True)
@@ -252,6 +118,7 @@ async def udl_handler(client: Client, message: Message):
 
     # Determine file name
     file_name = None
+    total_length = None
     
     # For streamtape domains, get filename using custom function
     if domain and any(x in domain for x in ["streamtape.com", "streamtape.co", "streamtape.cc", "streamtape.to", "streamtape.net", "streamta.pe", "streamtape.xyz", "streamtape.site"]):
@@ -266,6 +133,9 @@ async def udl_handler(client: Client, message: Message):
             elif "filename*=" in content_disposition:
                 file_name = content_disposition.split("filename*=")[1].split("'")[-1].strip('"\'')
             logger.info(f"File name from headers: {file_name}")
+        
+    if "Content-Length" in head:
+      total_length = int(head.get("Content-Length", 0))
 
     # If file name is not found in headers, fallback to URL
     if not file_name:
@@ -298,7 +168,7 @@ async def udl_handler(client: Client, message: Message):
         try:
             # Set a timeout for the GET request
             timeout = aiohttp.ClientTimeout(total=Config.PROCESS_MAX_TIMEOUT)
-            downloaded_file = await download_coroutine(session, url, file_name, headers, download_path, lol, start_time, cancel_flag)
+            downloaded_file = await aria_dl(url, file_name, download_path, headers, total_length, lol, start_time, cancel_flag, aria2_options)
             logger.info(f"Download completed: {downloaded_file}")
         except asyncio.TimeoutError:
             logger.error("Download timed out")
@@ -359,7 +229,7 @@ async def udl_handler(client: Client, message: Message):
                 f"┃\n"
                 f"┠ **Size:** {file_size}\n"
                 f"┠ **Elapsed:** {elapsed}\n"
-                f"┠ **Mode:** #leech || #aiohttp\n"
+                f"┠ **Mode:** #leech || #Aria2\n"
                 f"┠ **Total Files:** 1\n"
                 f"┖ **By:** {message.from_user.mention}\n\n"
                 f"➲ **__File(s) have been Sent. Access via Links...__**\n\n"
