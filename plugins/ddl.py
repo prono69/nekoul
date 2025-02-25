@@ -171,7 +171,7 @@ async def download_coroutine(
 
 
 @Client.on_callback_query(filters.regex("^cancel_download$"))
-async def cancel_download_handler(client: Client, callback_query: CallbackQuery):
+async def cancel_download_handler(client, callback_query):
     """
     Handle the cancel button click.
     """
