@@ -145,7 +145,7 @@ async def warn(c, m):
         await m.reply_text(text="You Are Not Admin 😡", quote=True)
         
         
-@Client.on_message(filters.command('log') & filters.users(Config.OWNER_ID))
+@Client.on_message(filters.command('log') & filters.user(Config.OWNER_ID))
 async def log_command(_, msg: Message):
     await msg.reply_document('log.txt', quote=True)
     
