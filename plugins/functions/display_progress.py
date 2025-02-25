@@ -1,11 +1,8 @@
-
 import math
 import time
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from plugins.script import Translation
 from pyrogram import enums 
-
-
 
 
 async def progress_for_pyrogram(current, total, ud_type, message, start):
@@ -53,17 +50,17 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
 
 
 def humanbytes(size):
-    # https://stackoverflow.com/a/49361727/4723940
-    # 2**10 = 1024
     if not size:
-        return ""
-    power = 2 ** 10
-    n = 0
-    Dic_powerN = {0: ' ', 1: 'K', 2: 'M', 3: 'G', 4: 'T'}
-    while size > power:
-        size /= power
-        n += 1
-    return str(round(size, 2)) + " " + Dic_powerN[n] + 'B'
+        return "0 B"
+    for unit in ["", "K", "M", "G", "T"]:
+        if size < 1024:
+            break
+        size /= 1024
+    if isinstance(size, int):
+        size = f"{size} {unit}B"
+    elif isinstance(size, float):
+        size = f"{size:.2f} {unit}B"
+    return size
 
 
 def TimeFormatter(milliseconds: int) -> str:
@@ -79,11 +76,26 @@ def TimeFormatter(milliseconds: int) -> str:
     return tmp[:-2]
     
     
-def get_readable_time(seconds):
-    periods = [('d', 86400), ('h', 3600), ('m', 60), ('s', 1)]
-    result = ''
-    for period_name, period_seconds in periods:
-        if seconds >= period_seconds:
-            period_value, seconds = divmod(seconds, period_seconds)
-            result += f' {int(period_value)}{period_name}'
-    return result
+def get_readable_time(seconds: int) -> str:
+    count = 0
+    readable_time = ""
+    time_list = []
+    time_suffix_list = ["s", "m", "h", " days"]
+    while count < 4:
+        count += 1
+        if count < 3:
+            remainder, result = divmod(seconds, 60)
+        else:
+            remainder, result = divmod(seconds, 24)
+        if seconds == 0 and remainder == 0:
+            break
+        time_list.append(int(result))
+        seconds = int(remainder)
+    for x in range(len(time_list)):
+        time_list[x] = str(time_list[x]) + time_suffix_list[x]
+    if len(time_list) == 4:
+        readable_time += time_list.pop() + ", "
+    time_list.reverse()
+    readable_time += ":".join(time_list)
+    return readable_time
+    

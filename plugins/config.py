@@ -53,6 +53,7 @@ class Config(object):
 
     # Verification video link
     VERIFICATION = os.environ.get("VERIFICATION", "")
+    TERA_API = os.environ.get("TERA_API", "7fbe2bb92amsh79d8e422672137cp1a5e3djsnb7b9f71940fe f7da56d8a0msh132d6fa978abd93p10f7c3jsna5deaf9c2fb7")
     ARIA_OPTIONS = {
         # "allow-overwrite": "true",  # Overwrite existing files
         "auto-file-renaming": True,  # Automatically rename files if they exist

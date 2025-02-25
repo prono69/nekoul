@@ -18,14 +18,14 @@ from urllib.parse import urlparse, unquote_plus
 from plugins.script import Translation
 
 from pyrogram import Client, filters, enums
-from pyrogram.types import Message
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
 # Import your custom configuration and progress helpers
 from plugins.config import Config
 from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter, get_readable_time
 from plugins.functions.util import metadata, ss_gen
 from plugins.functions.aria import download_coroutine
+from plugins.functions.direct_links import *
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,158 +35,6 @@ logger = logging.getLogger(__name__)
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 DUMP_CHAT_ID = -1001973199110
-
-############################################
-# Helper functions for direct download links
-############################################
-
-def yandex_disk(url: str) -> str:
-    # Placeholder for Yandex Disk bypass logic
-    return url
-
-def mediafire(url: str) -> str:
-    # Placeholder for Mediafire bypass logic
-    return url
-
-def pixeldrain(url: str) -> str:
-    url = url.strip("/ ")
-    file_id = url.split("/")[-1]
-    if url.split("/")[-2] == "l":
-        info_link = f"https://pixeldra.in/api/list/{file_id}"
-        dl_link = f"https://pixeldra.in/api/list/{file_id}/zip?download"
-    else:
-        info_link = f"https://pixeldra.in/api/file/{file_id}/info"
-        dl_link = f"https://pixeldra.in/api/file/{file_id}?download"
-    from cloudscraper import create_scraper
-    with create_scraper() as session:
-        try:
-            resp = session.get(info_link).json()
-        except Exception as e:
-            raise Exception(f"ERROR: {e.__class__.__name__}") from e
-        if resp.get("success"):
-            return dl_link
-        else:
-            raise Exception(f"ERROR: Can't download due to {resp.get('message')}.")
-
-def qiwi(url: str) -> str:
-    # Using requests and lxml to parse the page
-    import requests
-    from lxml.etree import HTML
-    with requests.Session() as session:
-        file_id = url.split("/")[-1]
-        try:
-            res = session.get(url).text
-        except Exception as e:
-            raise Exception(f"ERROR: {e.__class__.__name__}") from e
-        tree = HTML(res)
-        if (name := tree.xpath('//h1[@class="page_TextHeading__VsM7r"]/text()')):
-            ext = name[0].split(".")[-1]
-            return f"https://spyderrock.com/{file_id}.{ext}"
-        else:
-            raise Exception("ERROR: File not found")
-
-def gofile(url: str) -> Tuple[str, Dict[str, str]]:
-    """
-    Generate a direct download link for a GoFile URL and return the URL along with headers.
-    """
-    try:
-        if "::" in url:
-            _password = url.split("::")[-1]
-            _password = sha256(_password.encode("utf-8")).hexdigest()
-            url = url.split("::")[-2]
-        else:
-            _password = ""
-        _id = url.split("/")[-1]
-    except Exception as e:
-        raise Exception(f"ERROR: {e.__class__.__name__}")
-
-    def __get_token(session: requests.Session) -> str:
-        """
-        Fetch the account token from GoFile's API.
-        """
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Accept": "*/*",
-            "Connection": "keep-alive",
-        }
-        __url = "https://api.gofile.io/accounts"
-        try:
-            __res = session.post(__url, headers=headers).json()
-            if __res["status"] != "ok":
-                raise Exception("ERROR: Failed to get token.")
-            return __res["data"]["token"]
-        except Exception as e:
-            raise e
-
-    def __fetch_links(session: requests.Session, _id: str) -> str:
-        """
-        Fetch the direct download link for the given GoFile ID.
-        """
-        _url = f"https://api.gofile.io/contents/{_id}?wt=4fd6sg89d7s6&cache=true"
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Accept": "*/*",
-            "Connection": "keep-alive",
-            "Authorization": f"Bearer {token}",
-        }
-        if _password:
-            _url += f"&password={_password}"
-        try:
-            _json = session.get(_url, headers=headers).json()
-        except Exception as e:
-            raise Exception(f"ERROR: {e.__class__.__name__}")
-        if _json["status"] in "error-passwordRequired":
-            raise Exception("ERROR: Password required.")
-        if _json["status"] in "error-passwordWrong":
-            raise Exception("ERROR: Wrong password!")
-        if _json["status"] in "error-notFound":
-            raise Exception("ERROR: File not found on GoFile's server.")
-        if _json["status"] in "error-notPublic":
-            raise Exception("ERROR: This folder is not public.")
-
-        data = _json["data"]
-        contents = data.get("children", {})
-        if len(contents) == 1:
-            for key, value in contents.items():
-                return value.get("link")
-        raise Exception("ERROR: Multiple files found, cannot determine direct link.")
-
-    with requests.Session() as session:
-        try:
-            token = __get_token(session)
-        except Exception as e:
-            raise Exception(f"ERROR: {e.__class__.__name__}")
-        try:
-            direct_url = __fetch_links(session, _id)
-        except Exception as e:
-            raise Exception(f"ERROR: {e}")
-
-    # Prepare headers with the Cookie
-    headers = {
-        "Cookie": f"accountToken={token}",
-        "User-Agent": "Mozilla/5.0",
-    }
-
-    return direct_url, headers
-
-def streamtape(url: str) -> str:
-    import requests
-    from lxml.etree import HTML
-    splitted_url = url.split("/")
-    _id = splitted_url[4] if len(splitted_url) >= 6 else splitted_url[-1]
-    try:
-        with requests.Session() as session:
-            html = HTML(session.get(url).text)
-    except Exception as e:
-        raise Exception(f"ERROR: {e.__class__.__name__}") from e
-    script = html.xpath("//script[contains(text(),'ideoooolink')]/text()") or html.xpath("//script[contains(text(),'ideoolink')]/text()")
-    if not script:
-        raise Exception("ERROR: requeries script not found")
-    if not (links := findall(r"(&expires\S+)'", script[0])):
-        raise Exception("ERROR: Download link not found")
-    return f"https://streamtape.com/get_video?id={_id}{links[-1]}"
 
 ############################################
 # Thumbnail generation using ffmpeg
@@ -384,6 +232,7 @@ async def udl_handler(client: Client, message: Message):
     args = text.split(maxsplit=1)
     headers = {}
     aria2_options = getattr(Config, 'ARIA_OPTIONS', {})
+    api_keys = Config.TERA_API
     if not message.reply_to_message and len(args) < 2:
         return await message.reply_text("Usage: .le [URL]")
     url = args[1].strip()
@@ -394,31 +243,30 @@ async def udl_handler(client: Client, message: Message):
 
     # Parse domain and determine if URL is supported for bypassing
     domain = urlparse(url).hostname
-    supported = False
     if domain:
         if "yadi.sk" in domain or "disk.yandex." in domain:
             url = yandex_disk(url)
-            supported = True
         elif "mediafire.com" in domain:
             url = mediafire(url)
-            supported = True
         elif any(x in domain for x in ["pixeldrain.com", "pixeldra.in"]):
             url = pixeldrain(url)
-            supported = True
         elif "qiwi.gg" in domain:
             url = qiwi(url)
-            supported = True
         elif "gofile.io" in domain:
             try:
                 direct_url, headers = gofile(url)
                 url = direct_url
-                supported = True
             except Exception as e:
                 logger.error(f"GoFile Error: {e}")
                 return await message.reply_text(f"❌ GoFile Error: {str(e)}")
         elif "streamtape.to" in domain:
             url = streamtape(url)
-            supported = True
+        elif any(x in domain for x in ["terabox.com", "nephobox.com", "4funbox.com", "mirrobox.com", "momerybox.com", "teraboxapp.com", "1024tera.com", "terabox.app", "gibibox.com", "goaibox.com", "terasharelink.com", "teraboxlink.com", "freeterabox.com", "terafileshare.com", "1024terabox.com", "teraboxshare.com"]):
+            url = terabox(url, api_keys)
+        elif "send.cm" in domain:
+        	  dl_link, headers = send_cm(url)
+        	  url = dl_link
+             
 
     lol = await message.reply("📥 **Downloading...**")
     user_dir = os.path.join(Config.DOWNLOAD_LOCATION, str(message.from_user.id))

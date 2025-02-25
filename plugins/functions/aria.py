@@ -5,6 +5,7 @@ import logging
 from typing import Dict, Optional
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from .display_progress import TimeFormatter, humanbytes
 
 # Logger
 logger = logging.getLogger(__name__)
@@ -37,22 +38,6 @@ def convert_to_bytes(value: str) -> float:
             return float(value.replace(unit, "")) * multiplier
     return float(value)  # If no unit is found, assume bytes
 
-# Utility functions
-def humanbytes(size: float) -> str:
-    """Convert bytes to human-readable format."""
-    units = ["B", "KB", "MB", "GB", "TB"]
-    index = 0
-    while size >= 1024 and index < len(units) - 1:
-        size /= 1024
-        index += 1
-    return f"{size:.2f} {units[index]}"
-
-def TimeFormatter(milliseconds: int) -> str:
-    """Convert milliseconds to a human-readable time format."""
-    seconds, milliseconds = divmod(milliseconds, 1000)
-    minutes, seconds = divmod(seconds, 60)
-    hours, minutes = divmod(minutes, 60)
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 # Download function
 async def download_coroutine(
