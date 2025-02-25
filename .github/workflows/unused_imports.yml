@@ -1,0 +1,32 @@
+name: Remove Unused Imports and Optimize Imports
+
+on:
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  remove-unused-imports:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'  # Replace with your Python version
+
+      - name: Install autoflake
+        run: pip install autoflake
+
+      - name: Remove unused imports and optimize imports
+        run: |
+          find . -type f -name "*.py" | xargs autoflake --in-place --remove-all-unused-imports --remove-duplicate-keys
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add .
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-remove unused imports and optimize imports"
+          git push
