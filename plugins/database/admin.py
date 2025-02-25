@@ -5,7 +5,7 @@ from pyrogram.types import (
     Message
 )
 from plugins.config import Config
-from pyrogram import Client, enums
+from pyrogram import Client
 from plugins.database.database import db
 from plugins.functions.display_progress import humanbytes
 from pyrogram import Client

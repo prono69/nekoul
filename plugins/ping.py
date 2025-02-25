@@ -1,8 +1,6 @@
 # Credits by @neomatrix90
 
-import asyncio
 import aiohttp
-import random
 import time
 import requests
 from random import choice

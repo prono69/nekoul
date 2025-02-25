@@ -9,10 +9,8 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 import random
-import numpy
 import os
 from PIL import Image
-import time
 
 # the Strings used for this "thing"
 from plugins.script import Translation
@@ -23,18 +21,11 @@ from hachoir.parser import createParser
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 from pyrogram import filters
 from plugins.functions.help_Nekmo_ffmpeg import take_screen_shot
-import psutil
-import shutil
-import string
-import asyncio
-from asyncio import TimeoutError
-from pyrogram.errors import MessageNotModified
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery, ForceReply
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from plugins.functions.forcesub import handle_force_subscribe
 from plugins.database.database import db
 from plugins.config import Config
 from plugins.database.database import db
-from plugins.settings.settings import *
 
 
 @Client.on_message(filters.private & filters.photo)

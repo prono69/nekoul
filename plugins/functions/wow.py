@@ -1,24 +1,12 @@
 import logging
 import asyncio
-import aiohttp
-from hashlib import sha256
-import requests
 import os
-import re
 import time
-import subprocess
-from datetime import datetime
-from re import findall
-from pathlib import PurePath
-from mime_ext import get_extension
-from typing import Dict, Optional, Tuple
 from pyrogram import Client, filters
-from urllib.parse import urlparse, unquote_plus
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Import your custom configuration and progress helpers
-from plugins.config import Config
-from plugins.functions.display_progress import progress_for_pyrogram, humanbytes, TimeFormatter, get_readable_time
+from plugins.functions.display_progress import humanbytes, TimeFormatter
 
 logging.basicConfig(
     level=logging.INFO,

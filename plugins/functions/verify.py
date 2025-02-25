@@ -1,18 +1,9 @@
-import asyncio
-from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
-from pyrogram.errors import FloodWait, UserIsBlocked, MessageNotModified, PeerIdInvalid
-from typing import Union
 import pytz
 import random 
-import re
-import os
-from datetime import datetime, date
+from datetime import date
 import string
-from typing import List
 from plugins.database.database import db
-import requests
 import aiohttp
-import json
 from plugins.config import Config
 
 

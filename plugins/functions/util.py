@@ -1,7 +1,6 @@
 import asyncio
 import json
-import os
-from time import time, strftime, gmtime
+from time import strftime, gmtime
 import subprocess
 import logging
 from urllib.parse import unquote

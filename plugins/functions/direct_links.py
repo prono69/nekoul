@@ -1,25 +1,14 @@
-import logging
-import asyncio
-import aiohttp
 from hashlib import sha256
 from lxml.etree import HTML
 import requests
 from requests import (
     Session,
-    post,
-    get,
-    RequestException
+    post
 )
 import random
-import os
-import re
-import time
-import subprocess
-from datetime import datetime
 from cloudscraper import create_scraper
 from re import findall
-from pathlib import PurePath
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 class DirectDownloadLinkException(Exception):
     pass

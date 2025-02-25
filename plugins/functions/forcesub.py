@@ -1,8 +1,7 @@
 import asyncio
 from plugins.config import Config
-from pyrogram import Client, enums
 from pyrogram.errors import FloodWait, UserNotParticipant
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 async def handle_force_subscribe(bot, message):
     try:

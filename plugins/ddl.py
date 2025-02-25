@@ -2,22 +2,17 @@ import mimetypes
 import logging
 import asyncio
 import aiohttp
-from hashlib import sha256
-import requests
 import os
 import re
 import time
-import subprocess
-from datetime import datetime
-from re import findall
 from pathlib import PurePath
 from mime_ext import get_extension
 from plugins.thumbnail import *
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 from urllib.parse import urlparse, unquote_plus
 from plugins.script import Translation
 
-from pyrogram import Client, filters, enums
+from pyrogram import Client, filters
 from pyrogram.types import Message
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
