@@ -163,6 +163,8 @@ def streamtape(url: str) -> str:
     
     
 def terabox(terabox_url, api_keys):
+    if "https://d" in terabox_url:
+    	return terabox_url
     url = "https://terabox-downloader-direct-download-link-generator2.p.rapidapi.com/url"
     api_key = random.choice(api_keys.split())
     

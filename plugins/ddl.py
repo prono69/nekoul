@@ -2,6 +2,7 @@ import mimetypes
 import logging
 import asyncio
 import aiohttp
+import aiofiles
 import os
 import re
 import time
@@ -98,76 +99,120 @@ async def download_coroutine(
     file_path: str, 
     message: Message, 
     start_time: float,
-    cancel_flag: Dict[str, bool]  # Shared flag to signal cancellation
+    cancel_flag: Dict[str, bool],
+    max_retries: int = 3
 ) -> str:
     """
-    Download a file from the given URL with optional headers and a cancel button.
+    Download a file with retry and resume capabilities
     """
     downloaded = 0
     last_update_time = start_time
     last_progress_text = ""
+    chunk_size = 1024 * 1024  # 1MB chunks
+    retry_count = 0
 
-    # Create a cancel button
     cancel_button = InlineKeyboardMarkup(
         [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_download")]]
     )
 
-    try:
-        async with session.get(url, headers=headers, timeout=Config.PROCESS_MAX_TIMEOUT, allow_redirects=True) as response:
-            total_length = int(response.headers.get("Content-Length", 0))
-            progress_message = await message.edit(
-                f"📥 **Initiating Download**\n\n**File Name:** `{file_name}`\n**File Size:** {humanbytes(total_length)}",
-                reply_markup=cancel_button
-            )
+    # Check if partial download exists
+    if os.path.exists(file_path):
+        downloaded = os.path.getsize(file_path)
+        if downloaded > 0:
+            headers['Range'] = f'bytes={downloaded}-'
 
-            with open(file_path, "wb") as f_handle:
-                while True:
-                    # Check if the download has been canceled
-                    if cancel_flag.get("cancel", False):
-                        await message.reply("❌ Download canceled.")
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
-                        return None
+    while retry_count < max_retries:
+        try:
+            async with session.get(url, headers=headers, timeout=Config.PROCESS_MAX_TIMEOUT, allow_redirects=True) as response:
+                # Handle resume capability
+                if response.status == 206:  # Partial content
+                    total_length = downloaded + int(response.headers.get("Content-Length", 0))
+                else:  # Full content
+                    total_length = int(response.headers.get("Content-Length", 0))
+                    downloaded = 0  # Reset if we're starting fresh
 
-                    chunk = await response.content.read(Config.CHUNK_SIZE)
-                    if not chunk:
-                        break
-                    f_handle.write(chunk)
-                    downloaded += len(chunk)
-                    now = time.time()
-                    diff = now - start_time
+                progress_message = await message.edit(
+                    f"📥 **{'Resuming' if downloaded else 'Starting'} Download**\n\n"
+                    f"**File Name:** `{file_name}`\n"
+                    f"**File Size:** {humanbytes(total_length)}",
+                    reply_markup=cancel_button
+                )
 
-                    # Update progress every ~2 seconds or when finished
-                    if now - last_update_time >= 5 or downloaded == total_length:
-                        percentage = (downloaded / total_length) * 100
-                        speed = downloaded / diff if diff > 0 else 0
-                        time_to_completion = round((total_length - downloaded) / speed) * 1000 if speed > 0 else 0
-                        estimated_total_time = round(diff) + time_to_completion
+                # Open file in append mode if resuming, write mode if starting fresh
+                mode = 'ab' if downloaded > 0 else 'wb'
+                async with aiofiles.open(file_path, mode) as f_handle:
+                    try:
+                        async for chunk in response.content.iter_chunked(chunk_size):
+                            if cancel_flag.get("cancel", False):
+                                await message.reply("❌ Download canceled.")
+                                if os.path.exists(file_path):
+                                    os.remove(file_path)
+                                return None
 
-                        # Stylish progress bar
-                        progress_bar = "⬢" * int(percentage / 5) + "⬡" * (20 - int(percentage / 5))
-                        progress_text = (
-                            f"📥 **Downloading...**\n\n"
-                            f"**File Name:** `{file_name}`\n"
-                            f"**Progress:** [{progress_bar}] {round(percentage, 2)}%\n"
-                            f"**Downloaded:** {humanbytes(downloaded)} of {humanbytes(total_length)}\n"
-                            f"**Speed:** {humanbytes(speed)}/s\n"
-                            f"**ETA:** {TimeFormatter(time_to_completion)}"
-                        )
+                            await f_handle.write(chunk)
+                            downloaded += len(chunk)
+                            now = time.time()
+                            diff = now - start_time
 
-                        # Only update the message if the content has changed
-                        if progress_text != last_progress_text:
-                            await progress_message.edit(
-                                progress_text,
+                            if now - last_update_time >= 5 or downloaded == total_length:
+                                percentage = (downloaded / total_length) * 100
+                                speed = downloaded / diff if diff > 0 else 0
+                                time_to_completion = round((total_length - downloaded) / speed) * 1000 if speed > 0 else 0
+
+                                progress_bar = "⬢" * int(percentage / 5) + "⬡" * (20 - int(percentage / 5))
+                                progress_text = (
+                                    f"📥 **Downloading...**\n\n"
+                                    f"**File Name:** `{file_name}`\n"
+                                    f"**Progress:** [{progress_bar}] {round(percentage, 2)}%\n"
+                                    f"**Downloaded:** {humanbytes(downloaded)} of {humanbytes(total_length)}\n"
+                                    f"**Speed:** {humanbytes(speed)}/s\n"
+                                    f"**ETA:** {TimeFormatter(time_to_completion)}"
+                                )
+
+                                if progress_text != last_progress_text:
+                                    await progress_message.edit(
+                                        progress_text,
+                                        reply_markup=cancel_button
+                                    )
+                                    last_progress_text = progress_text
+                                    last_update_time = now
+
+                    except (aiohttp.ClientPayloadError, asyncio.TimeoutError) as e:
+                        logger.warning(f"Download interrupted: {str(e)}. Retrying...")
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            await message.edit(
+                                f"⚠️ Download interrupted. Retrying ({retry_count}/{max_retries})...",
                                 reply_markup=cancel_button
                             )
-                            last_progress_text = progress_text
-                            last_update_time = now
+                            # Update headers with current downloaded bytes for resume
+                            headers['Range'] = f'bytes={downloaded}-'
+                            await asyncio.sleep(5)  # Wait before retry
+                            continue
+                        else:
+                            raise Exception(f"Max retries ({max_retries}) reached")
 
-            return file_path
-    except Exception as e:
-        logger.error("Error in download_coroutine: %s", e)
-        raise e
+                # Verify download completion
+                if downloaded != total_length:
+                    raise Exception("Download incomplete")
+
+                return file_path
+
+        except Exception as e:
+            logger.error(f"Error in download attempt {retry_count + 1}: {str(e)}")
+            retry_count += 1
+            if retry_count >= max_retries:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                raise Exception(f"Download failed after {max_retries} attempts: {str(e)}")
+            
+            await message.edit(
+                f"⚠️ Download error: {str(e)}\nRetrying ({retry_count}/{max_retries})...",
+                reply_markup=cancel_button
+            )
+            await asyncio.sleep(5)  # Wait before retry
+
+    raise Exception("Download failed: Max retries exceeded")
 
 
 @Client.on_callback_query(filters.regex("^cancel_download$"))
